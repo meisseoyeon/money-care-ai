@@ -58,7 +58,7 @@ CREATE TABLE transactions (
     channel VARCHAR(20) CHECK (channel IN ('CARD','BANK_TRANSFER','DIRECT_DEBIT','ATM','OTHER')),
     description VARCHAR(255),
     counterparty_id VARCHAR(100),
-    source VARCHAR(20) NOT NULL DEFAULT 'SYNTHETIC' CHECK (source='SYNTHETIC'),
+    source VARCHAR(20) NOT NULL DEFAULT 'SYNTHETIC' CHECK (source IN ('SYNTHETIC', 'DEMO')),
     scenario_label VARCHAR(50),
     UNIQUE(id,user_id),
     FOREIGN KEY(account_id,user_id) REFERENCES accounts(account_id,user_id),
