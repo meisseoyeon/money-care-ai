@@ -27,7 +27,7 @@ services:
       FLYWAY_CLEAN_DISABLED: "true"
       FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
     volumes:
-      - ./db/migrations:/flyway/sql:ro
+      - ./database/migrations:/flyway/sql:ro
     depends_on:
       db:
         condition: service_healthy
