@@ -28,6 +28,7 @@
 | GET | /alert-shares | Share[]; 당사자가 만든 공유만 |
 | GET | /shared-alerts | SharedAlert[]; 유효한 공유·연결만 |
 | POST | /transfers | {request_id,counterparty_id,amount} → {transaction,alert_ids,forecast} |
+| POST | /transfer-help-requests | 제안: {request_id,counterparty_id,amount} → {alert_id,share_id}; 송금 실행 없이 예정 내용 공유 |
 | POST | /alerts/{id}/seen | NEW → SEEN; 응답 완료 상태는 유지 |
 | POST | /alerts/{id}/response | {response: PLANNED 또는 UNSURE 또는 HELP_REQUESTED} |
 | POST | /alerts/{id}/guide | Guide |

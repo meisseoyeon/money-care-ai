@@ -29,6 +29,8 @@ export function createHttpApi(baseUrl) {
       const alertItems = items(alerts);
       return { user, account: items(accounts)[0] ?? null, settings, expenses: items(expenses), forecast, recipients: items(recipients), transactions: items(transactions), alerts: alertItems, guides: alertItems.filter((a) => a.guide).map((a) => a.guide), links: items(links), shares: items(shares) };
     },
+    // 백엔드 구현 전까지 API 모드에서는 서버의 오류를 그대로 표시합니다.
+    requestTransferHelp: (payload) => request('/transfer-help-requests', { method: 'POST', body: payload }),
     transfer: (payload) => request('/transfers', { method: 'POST', body: payload }),
     markSeen: (id) => request(`/alerts/${id}/seen`, { method: 'POST' }),
     respond: (id, response) => request(`/alerts/${id}/response`, { method: 'POST', body: { response } }),

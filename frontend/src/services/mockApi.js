@@ -1,5 +1,6 @@
 import { AppError, calculateForecast, localDate, validateMoney, won } from '../lib/domain.js';
 import { seedDatabase, TEST_PASSWORD } from './fixtures.js';
+import { reviewTransfer } from '../lib/transferReview.js';
 
 export const DB_KEY = 'moneycare.frontend.v1.database';
 export const SESSION_KEY = 'moneycare.frontend.v1.session';
@@ -44,6 +45,38 @@ export function createMockApi({ storage, sessionStorage, clock = () => new Date(
       const previousIds = new Set(db.transactions.filter((t) => t.user_id === u.user_id && t.tx_type === 'TRANSFER').map((t) => t.counterparty_id));
       return { user: u, account: db.accounts.find((a) => a.user_id === u.user_id), settings: db.settings.find((s) => s.user_id === u.user_id), expenses: db.expenses.filter((e) => e.user_id === u.user_id), forecast: forecastFor(db, u.user_id), baseline: db.baselines.find((b) => b.user_id === u.user_id), recipients: db.recipients.map((p) => ({ ...p, familiar: previousIds.has(p.id) })), transactions: db.transactions.filter((t) => t.user_id === u.user_id).sort((a, b) => b.occurred_at.localeCompare(a.occurred_at)), alerts: db.alerts.filter((a) => a.user_id === u.user_id), guides: db.guides.filter((g) => db.alerts.some((a) => a.id === g.alert_id && a.user_id === u.user_id)), links: db.links.filter((l) => l.owner_user_id === u.user_id), shares: db.shares.filter((s) => s.owner_user_id === u.user_id) };
     },
+    requestTransferHelp(payload) { return mutate((db) => {
+      const u = owner(db);
+      if (!u.monitoring_consented_at || u.monitoring_revoked_at) throw new AppError('설정에서 모니터링을 켠 뒤 도움을 요청해 주세요.', 403);
+      const { request_id, counterparty_id, amount } = payload;
+      validateMoney(amount);
+      if (!request_id) throw new AppError('요청 식별자가 없어요. 다시 시도해 주세요.');
+      const link = db.links.find((l) => l.owner_user_id === u.user_id && l.status === 'ACTIVE');
+      if (!link) throw new AppError('연결된 지원자가 없어요. 설정에서 확인해 주세요.', 409);
+      const recipient = db.recipients.find((r) => r.id === counterparty_id);
+      if (!recipient) throw new AppError('받는 사람을 다시 선택해 주세요.');
+      const account = db.accounts.find((a) => a.user_id === u.user_id);
+      if (amount > account.current_balance) throw new AppError('통장에 있는 돈보다 많이 보낼 수 없어요.', 409);
+      const key = `transfer-help:${u.user_id}:${request_id}`;
+      const fingerprint = JSON.stringify({ counterparty_id, amount });
+      if (db.requests[key]) {
+        if (db.requests[key].fingerprint !== fingerprint) throw new AppError('같은 요청 번호에 다른 송금 정보가 들어왔어요.', 409);
+        return db.requests[key].result;
+      }
+      const review = reviewTransfer({ account, settings: db.settings.find((s) => s.user_id === u.user_id), expenses: db.expenses.filter((e) => e.user_id === u.user_id) }, amount, clock());
+      const shortage = review.forecast?.shortage_amount ?? 0;
+      const alert = addAlert(db, u.user_id, {
+        alert_type: 'LARGE_OUTFLOW', title: '송금 전에 함께 확인해 주세요',
+        explanation: `${recipient.name}님에게 ${won(amount)}을 보내기 전에 도움을 요청했어요. 도움 요청 당시의 송금 예정 내용이에요.${shortage > 0 ? ` 이 돈을 보내면 다음 수입일까지 생활비가 ${won(shortage)} 부족할 수 있어요.` : ''}`,
+        evidence: { stage: 'BEFORE_TRANSFER', amount, counterparty_name: recipient.name, shortage_amount: shortage },
+        dedupe_key: key, status: 'ANSWERED', user_response: 'HELP_REQUESTED', responded_at: clock().toISOString(),
+      });
+      const share = { id: id(), alert_id: alert.id, supporter_link_id: link.id, owner_user_id: u.user_id, status: 'ACTIVE', shared_at: clock().toISOString(), revoked_at: null };
+      db.shares.push(share);
+      const result = { alert_id: alert.id, share_id: share.id };
+      db.requests[key] = { fingerprint, result };
+      return result;
+    }); },
     transfer(payload) { return mutate((db) => {
       const u = owner(db); if (!u.monitoring_consented_at || u.monitoring_revoked_at) throw new AppError('설정에서 모니터링을 켠 뒤 가상 송금을 이용해 주세요.', 403);
       const { request_id, counterparty_id, amount } = payload; validateMoney(amount);
