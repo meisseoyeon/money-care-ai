@@ -2,7 +2,21 @@
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+
+# Frontend dependencies and build outputs
+node_modules/
+dist/
+playwright-report/
+test-results/
+
+# Python test outputs
+.pytest_cache/
+.coverage
+htmlcov/
 
 # Runtime logs
 /airflow/logs/
+/airflow/config/airflow.cfg
 *.log
