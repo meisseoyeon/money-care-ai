@@ -1,4 +1,5 @@
 import json
+import time
 
 from sqlalchemy import text
 from sqlalchemy.orm import Session
@@ -9,7 +10,7 @@ from app.ai.detection.rules import (
     check_large_outflow,
     check_new_counterparty,
 )
-
+from app.ai.explanation.fallback import TEMPLATE_VERSION, build_fallback_explanation
 
 # ---------- 1~3. DB에서 읽어오기 ----------
 
@@ -132,7 +133,25 @@ def _save_alert(db: Session, user_id: str, detection_id: int, alert_type: str, d
             params,
         ).scalar_one()
     return str(alert_id)
-
+def _save_fallback_explanation(db: Session, alert_id: str, alert_type: str, evidence: dict) -> None:
+    started = time.perf_counter()
+    explanation = build_fallback_explanation(alert_type, evidence)
+    latency_ms = int((time.perf_counter() - started) * 1000)
+    # 알림당 설명 1개. 이미 있으면(재실행) 그대로 둠.
+    db.execute(
+        text("""
+            INSERT INTO alert_explanations (
+                alert_id, generation_status, text, method,
+                template_version, validated, latency_ms, generated_at
+            ) VALUES (
+                CAST(:alert_id AS uuid), 'SUCCEEDED', :text, 'FALLBACK',
+                :template_version, TRUE, :latency_ms, CURRENT_TIMESTAMP
+            )
+            ON CONFLICT (alert_id) DO NOTHING
+        """),
+        {"alert_id": alert_id, "text": explanation,
+         "template_version": TEMPLATE_VERSION, "latency_ms": latency_ms},
+    )
 
 # ---------- 전체 흐름 ----------
 
@@ -184,6 +203,14 @@ def run_transaction_detection(db: Session, transaction_id: str) -> list[str]:
     alert_id = _save_alert(
         db, tx["user_id"], detection_ids[alert_type], alert_type, f"transaction:{tx['id']}"
     )
+    # 7. 쉬운 설명(대체 문구) 저장
+    alert_evidence = {
+        "amount": tx["amount"],
+        "is_new_counterparty": "NEW_COUNTERPARTY" in detection_ids,
+        "p95_out_amount": p95,
+        "triggered_rules": list(detection_ids),
+    }
+    _save_fallback_explanation(db, alert_id, alert_type, alert_evidence)
 
     db.commit()
     return [alert_id]

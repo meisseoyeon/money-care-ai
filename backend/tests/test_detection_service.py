@@ -92,6 +92,11 @@ class DetectionServiceTests(unittest.TestCase):
         self.assertEqual(len(alert_ids), 1)
         self.assertEqual(self._alert(alert_ids[0])["alert_type"], "NEW_COUNTERPARTY")
         self.assertEqual(self._detection_types("tx-new"), {"NEW_COUNTERPARTY"})
+        # 설명이 저장됐고, 금액이 근거 값 그대로 문장에 들어갔는지
+        explanation = self.db.execute(text(
+            "SELECT text FROM alert_explanations WHERE alert_id = CAST(:id AS uuid)"
+        ), {"id": alert_ids[0]}).scalar_one()
+        self.assertIn("20,000원", explanation)
 
     def test_large_amount_makes_alert(self):
         self._insert_tx("tx-large", "friend", 300000, NOW)
