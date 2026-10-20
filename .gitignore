@@ -5,18 +5,19 @@ __pycache__/
 .env.*
 !.env.example
 
-# Frontend dependencies and build outputs
+# Frontend dependencies, build outputs and caches
 node_modules/
 dist/
+.vite/
 playwright-report/
 test-results/
 
-# Python test outputs
+# Runtime logs and generated Airflow configuration
+*.log
+/airflow/logs/
+/airflow/config/airflow.cfg
+
+# Python test artifacts
 .pytest_cache/
 .coverage
 htmlcov/
-
-# Runtime logs
-/airflow/logs/
-/airflow/config/airflow.cfg
-*.log
