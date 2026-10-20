@@ -4,8 +4,14 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext.jsx';
 import { TEST_ACCOUNTS, TEST_PASSWORD } from '../services/fixtures.js';
 import { Button, ErrorMessage, Modal } from '../components/UI.jsx';
+import DemoStartPage from './DemoStartPage.jsx';
 
 export default function LoginPage() {
+  const { mode } = useApp();
+  return mode === 'api' ? <DemoStartPage /> : <MockLoginPage />;
+}
+
+function MockLoginPage() {
   const { user, login, run, mode } = useApp(); const navigate = useNavigate();
   const [email, setEmail] = useState(''), [password, setPassword] = useState(''), [show, setShow] = useState(false), [busy, setBusy] = useState(false), [error, setError] = useState(''), [reset, setReset] = useState(false);
   if (user) return <Navigate to={user.role === 'SUPPORTER' ? '/supporter' : '/'} replace />;

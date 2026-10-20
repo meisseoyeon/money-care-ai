@@ -7,7 +7,7 @@ import { reviewTransfer } from '../lib/transferReview.js';
 import { Badge, Button, Card, ErrorMessage, Modal, PageTitle, SuccessIcon } from '../components/UI.jsx';
 
 export default function TransferPage() {
-  const { data, run } = useApp();
+  const { data, run, user } = useApp();
   const navigate = useNavigate();
   const [recipientId, setRecipientId] = useState('');
   const [amount, setAmount] = useState('');
@@ -32,6 +32,7 @@ export default function TransferPage() {
     event.preventDefault();
     setError('');
     try {
+      if (!user.monitoring_consented_at || user.monitoring_revoked_at) throw new Error('내 설정에서 모니터링에 동의하고 켠 뒤 가상 송금을 이용해 주세요.');
       const n = validateMoney(Number(amount));
       if (!recipient) throw new Error('받는 사람을 먼저 선택해 주세요.');
       if (n > balance) throw new Error('통장에 있는 돈보다 많이 보낼 수 없어요.');

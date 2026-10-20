@@ -9,7 +9,7 @@
 | 루트 `compose.yaml` | 서비스 PostgreSQL, Flyway | 호스트 5433 → 컨테이너 5432 |
 | `airflow/docker-compose.yaml` | 배치 작업과 별도 Airflow 메타데이터 DB | 8080 |
 
-현재 백엔드 구현은 상태 확인 API만 포함합니다. 프런트엔드 화면의 서버 API, DB 모델, 탐지·설명·RAG는 별도 구현해야 합니다. 프런트엔드는 기본 mock 모드로 기존 동작을 유지합니다.
+현재 백엔드는 상태 확인과 체험 사용자 생성·토큰 인증·세션 재사용·모니터링 동의·가상 송금·거래내역 API를 제공합니다. 프런트엔드는 기본 API 모드로 체험 인증과 송금·거래내역에 연결합니다. 탐지·설명·RAG API는 담당 기능 병합 시 연결해야 합니다. 전체 화면의 더미 시연은 `VITE_API_MODE=mock`으로 실행합니다. 인증 구성과 실행 방법은 [AUTH.md](AUTH.md)를 참고하세요.
 
 ## 백엔드 패키지
 
@@ -18,7 +18,7 @@
 - `app/db`: DB 엔진과 세션 구현 위치.
 - `app/models`: SQLAlchemy 테이블 모델 구현 위치.
 - `app/schemas`: 요청·응답 데이터 모델 구현 위치.
-- `app/routers`: HTTP 요청과 오류 응답 처리. 현재 `/health` 구현.
+- `app/routers`: HTTP 요청과 오류 응답 처리. 현재 `/health`, `/demo` 구현.
 - `app/services`: 서비스 처리 규칙과 트랜잭션 구현 위치.
 - `app/ai/detection`: 규칙과 Isolation Forest 구현 위치.
 - `app/ai/explanation`: Gemini 설명 생성 구현 위치.
