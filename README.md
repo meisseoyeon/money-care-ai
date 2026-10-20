@@ -51,7 +51,7 @@ money-care-ai/
 
 루트 `compose.yaml`은 서비스 PostgreSQL과 Flyway 실행용입니다. Airflow의 실행 설정은 `airflow/docker-compose.yaml`로 분리합니다. 기존 루트 `.venv`는 계속 사용할 수 있습니다.
 
-현재 백엔드는 `/health`만 제공합니다. 나머지 백엔드 패키지는 구현할 위치를 준비한 상태이며, 프런트엔드는 기본적으로 mock 데이터로 작동합니다. API 모드는 실제 엔드포인트 구현 후 사용하세요.
+현재 백엔드는 `/health`, `/demo` 체험 생성·인증, `/transfers` 가상 송금, `/transactions` 거래내역 API를 제공합니다. 프런트엔드는 기본 API 모드에서 이메일 입력 없이 체험을 시작합니다. 기존 더미데이터 시연은 `VITE_API_MODE=mock`으로 선택합니다. 탐지·알림 등의 API는 각 담당 기능을 별도로 연결해야 합니다. 자세한 실행 방법은 [체험 인증 안내](docs/AUTH.md)를 참고하세요.
 
 ## 환경변수 준비
 
@@ -83,12 +83,14 @@ docker compose -f .\compose.yaml run --rm flyway info
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r backend/requirements.txt
-.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --reload
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir backend --host 127.0.0.1 --port 8000 --workers 1
 ```
 
 기존 `.venv`가 있다면 생성 명령은 생략합니다. API 문서는 http://127.0.0.1:8000/docs, 상태 확인은 http://127.0.0.1:8000/health 입니다.
 
-백엔드 내부 import는 `from app.routers import health`처럼 `app`을 기준으로 작성합니다. `backend` 폴더에서 실행할 경우 `..\.venv\Scripts\python.exe -m uvicorn app.main:app --reload`도 사용할 수 있습니다.
+백엔드 내부 import는 `from app.routers import health`처럼 `app`을 기준으로 작성합니다. `backend` 폴더에서 실행할 경우 `..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1`도 사용할 수 있습니다.
+
+Windows에서 `--reload` 실행 중 자식 프로세스의 `sock.listen()`에 `WinError 10014`가 발생하면 위의 단일 프로세스 명령을 사용하세요. 이 실행 방식에서는 백엔드 코드 수정 후 `Ctrl+C`로 종료하고 다시 실행해야 합니다. 자동 재시작이 필요하면 정상 동작하는 환경에서 `--reload --reload-dir backend`를 선택적으로 사용합니다.
 
 백엔드 테스트:
 
@@ -141,5 +143,6 @@ Airflow UI는 http://localhost:8080 입니다. 기본 로컬 계정은 `airflow`
 ## 문서
 
 - [전체 구성과 폴더별 역할](docs/ARCHITECTURE.md)
+- [체험 생성·인증 실행과 검증](docs/AUTH.md)
 - [API 연결 계약 초안](docs/API_CONTRACT.md)
 - DB 스키마 원본: `database/migrations/V1__initial_schema.sql`
