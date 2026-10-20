@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reviewTransfer } from '../src/lib/transferReview.js';
-import { createMockApi } from '../src/services/mockApi.js';
-import { TEST_PASSWORD } from '../src/services/fixtures.js';
+import { reviewTransfer } from '../src/features/transfers/review.js';
+import { createMockApi } from '../src/mocks/mockApi.js';
+import { TEST_PASSWORD } from '../src/mocks/fixtures.js';
 
 const now = new Date('2026-10-16T10:00:00.000Z');
 function memoryStorage() {

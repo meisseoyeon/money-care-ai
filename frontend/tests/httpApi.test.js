@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createHttpApi } from '../src/services/httpApi.js';
-import { DEMO_CREATION_KEY, DEMO_TOKEN_KEY } from '../src/services/demoSessions.js';
+import { createHttpApi } from '../src/app/httpApi.js';
+import { TOKEN_KEY } from '../src/shared/lib/storageKeys.js';
 
 function storage() {
   const data = new Map();
@@ -10,27 +10,27 @@ function storage() {
 
 for (const status of [200, 401]) {
   test(`이전 토큰의 늦은 ${status} 응답은 새 체험에 반영하지 않음`, async () => {
-    const store = storage(); store.setItem(DEMO_TOKEN_KEY, 'old');
+    const store = storage(); store.setItem(TOKEN_KEY, 'old');
     let respond;
     const api = createHttpApi('http://test', { storage: store, fetchImpl: async (url, options) => {
       assert.equal(options.headers.Authorization, 'Bearer old');
       return new Promise((resolve) => { respond = resolve; });
     } });
     const pending = api.saveBudget({ daily_living_budget: 20000 });
-    store.setItem(DEMO_TOKEN_KEY, 'new');
+    store.setItem(TOKEN_KEY, 'new');
     respond(new Response(JSON.stringify(status === 401 ? { detail: '만료' } : { user_id: 'old-user' }), { status }));
     await assert.rejects(pending, (error) => error.status === 409);
-    assert.equal(store.getItem(DEMO_TOKEN_KEY), 'new');
+    assert.equal(store.getItem(TOKEN_KEY), 'new');
   });
 }
 
 test('401 처리용 로컬 정리는 생성 복구나 서버 로그아웃을 호출하지 않음', () => {
   const store = storage();
-  store.setItem(DEMO_TOKEN_KEY, 'expired'); store.setItem(DEMO_CREATION_KEY, 'pending');
+  store.setItem(TOKEN_KEY, 'expired'); store.setItem('moneycare.api.demo.creation', 'pending');
   const api = createHttpApi('http://test', { storage: store, fetchImpl: () => { throw new Error('호출되면 안 됨'); } });
   api.clearSession();
-  assert.equal(store.getItem(DEMO_TOKEN_KEY), null);
-  assert.equal(store.getItem(DEMO_CREATION_KEY), null);
+  assert.equal(store.getItem(TOKEN_KEY), null);
+  assert.equal(store.getItem('moneycare.api.demo.creation'), null);
 });
 
 test('성공 상태의 잘못된 JSON은 정상 데이터로 취급하지 않음', async () => {
@@ -39,7 +39,7 @@ test('성공 상태의 잘못된 JSON은 정상 데이터로 취급하지 않음
 });
 
 test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지까지 표시', async () => {
-  const store = storage(); store.setItem(DEMO_TOKEN_KEY, 'valid');
+  const store = storage(); store.setItem(TOKEN_KEY, 'valid');
   const transactions = [];
   let balance = 800000;
   const api = createHttpApi('http://test', { storage: store, fetchImpl: async (url, options) => {
