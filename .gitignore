@@ -5,7 +5,7 @@ __pycache__/
 .env.*
 !.env.example
 
-# Installed frontend dependencies, build output and caches
+# Frontend dependencies, build outputs and caches
 node_modules/
 dist/
 .vite/
