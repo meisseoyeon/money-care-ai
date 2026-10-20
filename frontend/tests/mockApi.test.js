@@ -1,8 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createMockApi } from '../src/services/mockApi.js';
-import { seedDatabase, TEST_PASSWORD } from '../src/services/fixtures.js';
-import { calculateForecast, localDate, addDays } from '../src/lib/domain.js';
+import { createMockApi } from '../src/mocks/mockApi.js';
+import { seedDatabase, TEST_PASSWORD } from '../src/mocks/fixtures.js';
+import { calculateForecast } from '../src/features/budgets/forecast.js';
+import { localDate, addDays } from '../src/shared/lib/dates.js';
 
 const fixed = new Date('2026-10-16T10:00:00.000Z');
 function memoryStorage() { const data = new Map(); return { getItem: (k) => data.get(k) ?? null, setItem: (k,v) => data.set(k,v), removeItem: (k) => data.delete(k) }; }

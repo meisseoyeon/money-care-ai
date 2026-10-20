@@ -1,10 +1,10 @@
 # FastAPI 연결 계약 (제안)
 
-현재 UI가 읽는 DTO와 경로입니다. 최종 DDL의 테이블을 그대로 반환할 필요는 없습니다. 아래처럼 조회 전용 DTO로 조합하거나 src/services/httpApi.js에서 변환하세요. **이 경로가 기존 서버에 이미 구현되어 있다는 뜻은 아닙니다.**
+현재 UI가 읽는 DTO와 경로입니다. 최종 DDL의 테이블을 그대로 반환할 필요는 없습니다. 아래처럼 조회 전용 DTO로 조합하거나 src/app/httpApi.js에서 변환하세요. **이 경로가 기존 서버에 이미 구현되어 있다는 뜻은 아닙니다.**
 
 ## 공통
 
-- Authorization: Bearer access_token. `/health`와 최초 `/demo/sessions` 생성만 인증 없이 호출합니다. 체험 인증은 [AUTH.md](AUTH.md)를 참고하세요.
+- Authorization: Bearer access_token. `/health`와 `/auth/login`만 인증 없이 호출합니다. 체험 인증은 [AUTH.md](AUTH.md)를 참고하세요.
 - user_id는 인증 토큰에서 결정하고, 요청에 들어온 타인 ID를 신뢰하지 않습니다.
 - 날짜 YYYY-MM-DD, 일시 ISO8601 오프셋 포함. 금액 JSON 정수(현재 UI는 입력 10억 원 이하), ID는 문자열 권장(BIGINT도 JS 정밀도 범위를 넘기면 문자열).
 - 거래 목록은 {items: [...], next_cursor: string|null}입니다. 현재 어댑터는 다음 페이지까지 수집합니다.
@@ -13,16 +13,17 @@
 
 ## 경로
 
-다음 체험 API는 현재 구현되어 있습니다. 기존 `/auth/login` 이메일 로그인은 체험 모드에서 사용하지 않습니다.
+다음 API는 현재 구현되어 있습니다. `/auth/login`은 이메일이 아닌 아이디(username)와 비밀번호로 로그인하며 계정을 생성하지 않습니다.
 
 | 메서드 | 경로 | 요청 / 응답 |
 |---|---|---|
-| POST | /demo/sessions | Idempotency-Key UUID 헤더 + {acknowledged:true,monitoring_consented:boolean,restart:boolean} → {access_token,token_type,expires_at,user} |
+| POST | /auth/login | {username,password} → {access_token,token_type,expires_at,user} |
+| GET | /auth/me | 현재 로그인 User와 expires_at |
+| POST | /auth/logout | 현재 로그인 세션 폐기, 204 |
 | GET | /demo/me | {user,expires_at,account,settings,expenses}; 토큰의 사용자 데이터만 |
 | GET | /demo/recipients | 합성 Recipient[] |
 | GET | /demo/accounts/{account_id} | 내 Account만, 다른 사용자는 404 |
 | PUT | /demo/me/monitoring-consent | {consented:boolean} → User |
-| DELETE | /demo/sessions/current | 현재 세션 폐기, 204 |
 | POST | /transfers | {request_id:UUID,counterparty_id,amount:정수} → {transaction,alert_ids:[],forecast:null}; 유효 세션과 모니터링 동의 필요 |
 | GET | /transactions | 내 거래만 최신순. limit(1~200, 기본 100), cursor 지원 → {items,next_cursor}; 철회 후에도 유효 세션이면 조회 가능 |
 
@@ -30,7 +31,6 @@
 
 | 메서드 | 경로 | 요청 / 응답 |
 |---|---|---|
-| POST | /auth/login | {email,password} → {access_token} |
 | GET | /users/me | User |
 | GET | /accounts | Account[] |
 | GET | /budget-settings | BudgetSettings |
@@ -80,7 +80,7 @@ Guide = {id, alert_id, method:'RAG'|'FALLBACK', steps:[string],
 SharedAlert = {...Alert, share_id, shared_at, owner_name, guide:null|Guide}
 ```
 
-Guide.steps는 문자열 또는 {instruction: "문장"}을 지원합니다. citations의 상세 필드는 src/components/Guide.jsx에서 확인하세요. 근거 문서·청크·인용을 서버에서 조합해 URL과 수집일을 반환하세요. 스크립트 URL은 UI 링크로 사용하지 않습니다.
+Guide.steps는 문자열 또는 {instruction: "문장"}을 지원합니다. citations의 상세 필드는 src/features/alerts/Guide.jsx에서 확인하세요. 근거 문서·청크·인용을 서버에서 조합해 URL과 수집일을 반환하세요. 스크립트 URL은 UI 링크로 사용하지 않습니다.
 
 현재 화면의 alert_type은 LARGE_OUTFLOW, NEW_COUNTERPARTY, BUDGET_SHORTAGE이며 서버가 LARGE_OUT, SHORTAGE 등을 쓰면 어댑터에서 변환하세요. user_response의 HELP_REQUESTED도 팀의 HELP 코드와 매핑할 수 있습니다.
 

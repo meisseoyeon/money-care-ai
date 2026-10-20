@@ -8,28 +8,28 @@ money-care-ai/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
+│   │   ├── auth/              # 인증
+│   │   ├── users/             # 사용자
+│   │   ├── accounts/          # 계좌
+│   │   ├── budgets/           # 생활비·예정 지출
+│   │   ├── transactions/      # 송금·거래내역
+│   │   ├── recipients/        # 송금 상대
+│   │   ├── monitoring/        # 동의·철회
+│   │   ├── demo/              # 초기 화면 조회
+│   │   ├── health/
 │   │   ├── core/
 │   │   ├── db/
-│   │   ├── models/
-│   │   ├── schemas/
-│   │   ├── routers/
-│   │   ├── services/
 │   │   └── ai/
-│   │       ├── detection/
-│   │       ├── explanation/
-│   │       └── rag/
 │   ├── tests/
 │   ├── requirements.txt
 │   └── .env.example
 ├── frontend/
 │   ├── src/
-│   │   ├── pages/
-│   │   ├── components/
-│   │   ├── services/
-│   │   ├── context/
-│   │   ├── lib/
-│   │   ├── App.jsx
-│   │   └── main.jsx
+│   │   ├── main.jsx
+│   │   ├── app/               # 라우팅·Provider·레이아웃
+│   │   ├── features/          # 인증·송금·거래·알림·생활비 등
+│   │   ├── shared/            # 공통 UI·HTTP·Context·도구·스타일
+│   │   └── mocks/             # 브라우저 시연 API·fixture
 │   ├── tests/
 │   ├── package.json
 │   ├── package-lock.json
@@ -51,7 +51,7 @@ money-care-ai/
 
 루트 `compose.yaml`은 서비스 PostgreSQL과 Flyway 실행용입니다. Airflow의 실행 설정은 `airflow/docker-compose.yaml`로 분리합니다. 기존 루트 `.venv`는 계속 사용할 수 있습니다.
 
-현재 백엔드는 `/health`, `/demo` 체험 생성·인증, `/transfers` 가상 송금, `/transactions` 거래내역 API를 제공합니다. 프런트엔드는 기본 API 모드에서 이메일 입력 없이 체험을 시작합니다. 기존 더미데이터 시연은 `VITE_API_MODE=mock`으로 선택합니다. 탐지·알림 등의 API는 각 담당 기능을 별도로 연결해야 합니다. 자세한 실행 방법은 [체험 인증 안내](docs/AUTH.md)를 참고하세요.
+현재 백엔드는 `/auth` 아이디·비밀번호 인증, `/demo` 공용 계정 데이터 조회, `/transfers` 가상 송금, `/transactions` 거래내역 API를 제공합니다. 로그인 화면에 안내된 `user1 / demo1234!`로 로그인합니다. 사용자 자동 생성·체험 재시작은 제거했습니다. 최초 실행 전 V6까지 마이그레이션한 뒤 수동 SQL로 정상 거래 30건·최종 잔액 80만 원을 준비하세요. [공용 계정 준비 및 로그인 안내](docs/AUTH.md)를 참고하세요.
 
 ## 환경변수 준비
 
@@ -88,7 +88,7 @@ python -m venv .venv
 
 기존 `.venv`가 있다면 생성 명령은 생략합니다. API 문서는 http://127.0.0.1:8000/docs, 상태 확인은 http://127.0.0.1:8000/health 입니다.
 
-백엔드 내부 import는 `from app.routers import health`처럼 `app`을 기준으로 작성합니다. `backend` 폴더에서 실행할 경우 `..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1`도 사용할 수 있습니다.
+백엔드 내부 import는 `from app.auth.dependencies import get_current_user`처럼 `app`을 기준으로 작성합니다. `backend` 폴더에서 실행할 경우 `..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000 --workers 1`도 사용할 수 있습니다.
 
 Windows에서 `--reload` 실행 중 자식 프로세스의 `sock.listen()`에 `WinError 10014`가 발생하면 위의 단일 프로세스 명령을 사용하세요. 이 실행 방식에서는 백엔드 코드 수정 후 `Ctrl+C`로 종료하고 다시 실행해야 합니다. 자동 재시작이 필요하면 정상 동작하는 환경에서 `--reload --reload-dir backend`를 선택적으로 사용합니다.
 

@@ -6,6 +6,18 @@ from app.main import app
 
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
+    async def test_existing_api_routes_are_registered_once(self):
+        expected = {
+            ("GET", "/health"), ("POST", "/auth/login"), ("GET", "/auth/me"),
+            ("POST", "/auth/logout"), ("GET", "/demo/me"), ("GET", "/demo/recipients"),
+            ("GET", "/demo/accounts/{account_id}"), ("PUT", "/demo/me/monitoring-consent"),
+            ("POST", "/transfers"), ("GET", "/transactions"),
+        }
+        registered = [(method, path) for path, methods in app.openapi()["paths"].items()
+                      for method in (method.upper() for method in methods)]
+        self.assertEqual(set(registered), expected)
+        self.assertEqual(len(registered), len(expected))
+
     async def test_health_route_is_registered(self):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test"
