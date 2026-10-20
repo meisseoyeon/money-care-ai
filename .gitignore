@@ -3,6 +3,11 @@ __pycache__/
 *.pyc
 .env
 
+# Frontend dependencies, build outputs and caches
+node_modules/
+dist/
+.vite/
+
 # Runtime logs
 /airflow/logs/
 *.log
