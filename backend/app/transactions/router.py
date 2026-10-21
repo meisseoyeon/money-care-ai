@@ -1,8 +1,9 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, BackgroundTasks, Depends, Query, Response
 from sqlalchemy.orm import Session
 
+from app.ai.explanation.service import upgrade_explanation_in_background
 from app.auth.dependencies import AuthPrincipal, get_current_user, require_monitoring_consent
 from app.db.session import get_db
 from app.transactions.schemas import TransferCreate
@@ -13,10 +14,14 @@ DB = Annotated[Session, Depends(get_db)]
 
 
 @router.post("/transfers")
-def transfer(payload: TransferCreate, db: DB, response: Response,
+def transfer(payload: TransferCreate, db: DB, response: Response, background_tasks: BackgroundTasks,
              principal: Annotated[AuthPrincipal, Depends(require_monitoring_consent)]):
     response.headers["Cache-Control"] = "no-store"
-    return service.create_transfer(db, principal, payload)
+    result = service.create_transfer(db, principal, payload)
+    # 송금 응답을 먼저 보내고, 쉬운 설명은 뒤에서 LLM으로 바꿈
+    for alert_id in result["alert_ids"]:
+        background_tasks.add_task(upgrade_explanation_in_background, principal.user.user_id, alert_id)
+    return result
 
 
 @router.get("/transactions")
