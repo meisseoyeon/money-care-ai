@@ -32,14 +32,28 @@ backend/app/
     router.py
     models.py
     service.py
-  budgets/                   # 생활비 설정·예정 지출 모델과 조회
-    models.py
+  budgets/                   # 생활비 설정·예정 지출·입력·결과
+    models.py                # 설정·지출·기존 snapshots/forecasts 테이블 매핑
     service.py
+    constants.py             # 생활비 입력·결과 공통 계산 버전
+    snapshots.py             # 현재 입력 고정·최초 저장·조회, 호출자가 commit
+    calculator.py            # 고정 입력으로 남은 일수·생활비·여유·부족 계산
+    forecasts.py             # 입력별 최초 결과 저장·조회, 호출자가 commit
+    queries.py               # 현재 입력과 같은 최신 결과 읽기, 오래됐으면 409
+    router.py                # 인증 사용자 생활비 조회 API
+    schemas.py               # 조회 응답 필드 제한·ID 문자열 변환
+  baselines/                 # 최근 30일 출금 기준 통계 계산·저장
+    calculator.py            # DB·API와 독립적인 공통 계산 함수
+    models.py                # 기존 user_baselines 테이블 매핑
+    service.py               # 날짜·버전별 최초 저장·조회, 호출자가 commit
+    router.py                # 인증 사용자의 오늘 기준 통계 조회
+    schemas.py               # 소수점 정밀도를 유지하는 조회 DTO
   transactions/              # 가상 송금·거래내역
     router.py
     models.py
     schemas.py
     service.py
+    budgets.py               # 준비 검사·거래별 송금 후 생활비 저장·재전송 조회
   recipients/                # 합성 수취인과 사용자별 친숙 여부
     router.py
     catalog.py
@@ -51,6 +65,8 @@ backend/app/
   demo/                      # 화면 초기 데이터를 모아 반환
     router.py
     service.py
+    initialization.py        # 로그인 시 통계·현재 입력·생활비 결과 준비
+    models.py                # V7 initialization_runs: 실행별 최초 결과 연결
   health/
     router.py
   core/                      # 여러 기능이 쓰는 설정·시간 함수
@@ -92,6 +108,7 @@ Flyway가 `database/migrations`의 SQL을 읽어 서비스 DB에 적용합니다
 - `transactions`: 거래내역 화면과 페이지 조회.
 - `alerts`: 알림 화면·대응 안내·문구·API.
 - `budgets`: 생활비 화면·예측 계산·설정 API.
+- `preparation`: 서버 기준 통계·생활비 결과 조회·준비 상태·공통 안내.
 - `supporters`: 지원자 화면·연결·공유 API.
 - `settings`: 설정 모달과 모니터링 설정 API.
 

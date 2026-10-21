@@ -5,14 +5,16 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
+from types import SimpleNamespace
 
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateSchema, DropSchema
 from app.auth.dependencies import require_monitoring_consent
 from app.core.time import utc_now
+from app.baselines.calculator import SEOUL
 from app.auth.passwords import hash_password
 from app.db.session import get_db
 from app.db.base import Base
@@ -27,6 +29,8 @@ from app.accounts.router import router as accounts_router
 from app.recipients.router import router as recipients_router
 from app.monitoring.router import router as monitoring_router
 from app.transactions.router import router as transactions_router
+from app.baselines.router import router as baselines_router
+from app.budgets.router import router as budgets_router
 
 TEST_SECRET = "auth-unit-tests-only-" + "x" * 48
 ROOT = Path(__file__).resolve().parents[2]
@@ -52,11 +56,49 @@ class AuthTestCase(unittest.IsolatedAsyncioTestCase):
                     # 매개변수가 없는 전체 DDL을 전달합니다. 함수 본문의 %도 보존합니다.
                     with conn.connection.driver_connection.cursor() as cursor:
                         cursor.execute(script, prepare=False)
+            # ORM의 스키마 변환뿐 아니라 DDL trigger 안의 테이블 조회도 격리합니다.
+            @event.listens_for(self.base_engine, "checkout")
+            def set_search_path(connection, record, proxy):
+                previous = connection.autocommit
+                connection.autocommit = True
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'SET search_path = "{self.schema}", public, pg_catalog')
+                finally:
+                    connection.autocommit = previous
             self.engine = self.base_engine.execution_options(schema_translate_map={None: self.schema})
         else:
             self.temp = tempfile.TemporaryDirectory()
             self.engine = create_engine("sqlite:///" + str(Path(self.temp.name) / "auth.db"), connect_args={"check_same_thread": False})
             Base.metadata.create_all(self.engine)
+            # 통계·생활비 저장은 PostgreSQL 통합 테스트에서 실제 실행합니다.
+            # 기존 SQLite 인증/송금 단위 테스트에는 명시적으로 준비 서비스를 대체합니다.
+            preparation = patch("app.auth.service.ensure_initial_preparation", return_value={"status": "READY"})
+            preparation.start()
+            self.addCleanup(preparation.stop)
+            # 송금 준비·생활비 저장은 PostgreSQL 전용 통합 테스트에서 실제 검증합니다.
+            forecasts = {}
+
+            def fake_forecast(db, *, user_id, transaction):
+                forecast = SimpleNamespace(
+                    id=transaction.id, snapshot_id=transaction.id, user_id=user_id,
+                    as_of=transaction.occurred_at, balance_as_of=transaction.occurred_at,
+                    next_income_date=transaction.occurred_at.date(), remaining_days=0,
+                    current_balance=transaction.balance_after, scheduled_expense_total=0,
+                    daily_living_budget=0, expected_living_cost=0, available_amount=transaction.balance_after,
+                    shortage_amount=0, calculation_version="test-only",
+                )
+                forecasts[transaction.id] = forecast
+                return forecast
+
+            for name, options in (
+                ("check_transfer_preparation", {"side_effect": lambda db, *, user_id: utc_now().astimezone(SEOUL).date()}),
+                ("create_transfer_forecast", {"side_effect": fake_forecast}),
+                ("find_transfer_forecast", {"side_effect": lambda db, *, user_id, transaction_id: forecasts.get(transaction_id)}),
+            ):
+                replacement = patch(f"app.transactions.service.{name}", **options)
+                replacement.start()
+                self.addCleanup(replacement.stop)
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         self.app = FastAPI()
         self.app.include_router(auth_router)
@@ -65,6 +107,8 @@ class AuthTestCase(unittest.IsolatedAsyncioTestCase):
         self.app.include_router(recipients_router)
         self.app.include_router(monitoring_router)
         self.app.include_router(transactions_router)
+        self.app.include_router(baselines_router)
+        self.app.include_router(budgets_router)
 
         @self.app.get("/test/transfer-guard")
         def protected(principal=Depends(require_monitoring_consent)):

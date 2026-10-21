@@ -79,6 +79,7 @@ src/
     transactions/                거래내역 화면·페이지 조회 API
     alerts/                      알림 목록·상세·대응 안내·문구·API
     budgets/                     생활비 화면·예측 계산·API
+    preparation/                 준비 상태·서버 결과 조회·공통 안내
     supporters/                  지원자 화면·연결·공유 API
     settings/                    설정 모달·모니터링 설정 API
   shared/
@@ -90,7 +91,7 @@ src/
   mocks/
     mockApi.js                   브라우저 시연 API
     fixtures.js                  시연 계정·더미데이터
-tests/                          로그인·API·mock·송금 검증 28개
+tests/                          로그인·API·mock·송금·준비·화면 렌더링 검증 45개
 ```
 
 각 기능 폴더에 관련 화면, 계산 함수, API 호출을 함께 둡니다. `app`은 기능들을 연결하고, `shared`는 특정 기능에 의존하지 않는 코드만 둡니다. 화면에서 공유 상태를 읽을 때는 `shared/state/AppContext.js`의 `useApp`을 사용하고, 데이터 변경과 재조회 처리는 `app/AppProvider.jsx`에서 관리합니다. 기능별 API는 request 함수를 전달받으므로 공통 HTTP 구현과 분리됩니다.
@@ -98,6 +99,8 @@ tests/                          로그인·API·mock·송금 검증 28개
 기존 `/#/login`, `/#/transfer` 등의 화면 주소와 `npm run dev` 실행 방법은 유지합니다. mock 데이터 형식·브라우저 저장 키도 그대로 사용합니다. 백엔드 API 계약은 [API_CONTRACT.md](../docs/API_CONTRACT.md)를 참고하세요.
 
 ## FastAPI 연결
+
+로그인·새로고침 후 `/baselines/current`와 `/budget-forecasts/latest`를 읽어 준비 상태와 서버 생활비 결과를 표시합니다. 준비 중·누락·오래됨·실패 상태에서는 홈과 송금 화면의 송금 버튼을 비활성화합니다. 재조회 또는 다시 로그인을 제공하며, API 모드에서 서버 결과를 브라우저 계산으로 대신하지 않습니다. 상세 흐름과 검증 범위는 [FRONTEND_PREPARATION.md](../docs/FRONTEND_PREPARATION.md)를 참고하세요.
 
 ### 송금 전 확인
 

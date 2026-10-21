@@ -4,11 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useApp } from '../../shared/state/AppContext.js';
 import { validateMoney } from '../../shared/lib/money.js';
 import { won } from '../../shared/lib/format.js';
-import { reviewTransfer } from './review.js';
+import { reviewSource, reviewTransfer } from './review.js';
 import { Badge, Button, Card, ErrorMessage, Modal, PageTitle, SuccessIcon } from '../../shared/ui/UI.jsx';
 
 export default function TransferPage() {
-  const { data, run, user } = useApp();
+  const { data, run, user, canTransfer, preparation } = useApp();
   const navigate = useNavigate();
   const [recipientId, setRecipientId] = useState('');
   const [amount, setAmount] = useState('');
@@ -22,6 +22,7 @@ export default function TransferPage() {
   const recipient = recipients.find((r) => r.id === recipientId);
   const balance = data.account?.current_balance ?? 0;
   const supporter = data.links?.find((link) => link.status === 'ACTIVE');
+  const draftIsCurrent = !draft || draft.sourceKey === reviewSource(data);
 
   const closeDraft = () => {
     if (lock.current) return;
@@ -33,6 +34,7 @@ export default function TransferPage() {
     event.preventDefault();
     setError('');
     try {
+      if (!canTransfer) throw new Error('송금 준비가 끝난 뒤 다시 확인해 주세요.');
       if (!user.monitoring_consented_at || user.monitoring_revoked_at) throw new Error('내 설정에서 모니터링에 동의하고 켠 뒤 가상 송금을 이용해 주세요.');
       const n = validateMoney(Number(amount));
       if (!recipient) throw new Error('받는 사람을 먼저 선택해 주세요.');
@@ -40,7 +42,7 @@ export default function TransferPage() {
       const review = reviewTransfer(data, n);
       const fingerprint = `${recipientId}:${n}`;
       if (!request.current || request.current.fingerprint !== fingerprint) request.current = { fingerprint, id: crypto.randomUUID() };
-      setDraft({ amount: n, recipient, balance, ...review });
+      setDraft({ amount: n, recipient, balance, sourceKey: reviewSource(data), ...review });
       setStep(review.requiresReview ? 'warning' : 'confirm');
     } catch (e) { setError(e.message); }
   };
@@ -59,6 +61,7 @@ export default function TransferPage() {
 
   const send = async () => {
     if (lock.current || step !== 'confirm') return;
+    if (!canTransfer || !draftIsCurrent) { setError('잔액과 준비 상태를 다시 확인한 뒤 보낼 내용을 새로 확인해 주세요.'); return; }
     lock.current = true;
     setBusy(true);
     setError('');
@@ -94,7 +97,8 @@ export default function TransferPage() {
           <label className="amount-label"><span className="sr-only">송금 금액</span><div className="amount-input"><input name="amount" type="text" inputMode="numeric" autoComplete="off" placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value.replace(/[^0-9]/g, ''))} /><span>원</span></div></label>
           <div className="quick-amounts">{[10000, 50000, 100000, 300000].map((n) => <Button key={n} variant="secondary" onClick={() => setAmount(String(n))}>{n / 10000}만 원</Button>)}</div>
           <ErrorMessage>{!draft && error}</ErrorMessage>
-          <Button type="submit" className="full" disabled={!recipientId || !amount}>보낼 내용 확인 <ArrowRight size={19} /></Button>
+          <Button type="submit" className="full" disabled={!canTransfer || !recipientId || !amount}>보낼 내용 확인 <ArrowRight size={19} /></Button>
+          {!canTransfer && <p className="helper" role="status">준비가 끝나면 보낼 내용을 확인할 수 있어요.</p>}
         </Card>
       </form>
       <div className="transfer-aside">
@@ -105,6 +109,8 @@ export default function TransferPage() {
 
     <Modal open={Boolean(draft)} title={modalTitle} onClose={closeDraft}>
       {draft && <>
+        {!canTransfer && <p className="info-box" role="status">{preparation.message}</p>}
+        {!draftIsCurrent && <p className="info-box" role="alert">잔액이나 생활비 결과가 바뀌었어요. 창을 닫고 보낼 내용을 다시 확인해 주세요.</p>}
         {step === 'warning' && <>
           <p className="helper">아직 돈을 보내지 않았어요. 아래 내용을 먼저 살펴봐요.</p>
           <div className="transfer-warnings">
@@ -113,7 +119,7 @@ export default function TransferPage() {
             {!draft.recipient.familiar && <div className="info-box">처음 보내는 상대예요. 받는 사람과 계좌가 맞는지 확인해 주세요.</div>}
           </div>
           <Button className="full" onClick={() => goTo('help')}><HandHeart size={20} />도움 요청하기</Button>
-          <Button className="full" variant="secondary" onClick={() => goTo('confirm')}>확인했어요 · 보낼 내용 확인<ArrowRight size={18} /></Button>
+          <Button className="full" variant="secondary" disabled={!canTransfer || !draftIsCurrent} onClick={() => goTo('confirm')}>확인했어요 · 보낼 내용 확인<ArrowRight size={18} /></Button>
           <Button className="full" variant="ghost" onClick={closeDraft}>금액을 다시 입력할게요</Button>
         </>}
 
@@ -141,7 +147,7 @@ export default function TransferPage() {
           <div className="confirm-recipient"><span className="avatar large">{draft.recipient.initial}</span><h3>{draft.recipient.name}님에게</h3><p className="confirm-amount">{won(draft.amount)}</p></div>
           <div className="receipt"><div><span>받는 계좌</span><strong>{draft.recipient.bank} {draft.recipient.account_hint}</strong></div><div><span>보낸 뒤 잔액</span><strong>{won(draft.projectedBalance)}</strong></div></div>
           <ErrorMessage>{error}</ErrorMessage>
-          <Button className="full" busy={busy} onClick={send}><Send size={18} />보내기</Button>
+          <Button className="full" busy={busy} disabled={!canTransfer || !draftIsCurrent} onClick={send}><Send size={18} />보내기</Button>
           <Button className="full" variant="secondary" disabled={busy} onClick={() => draft.requiresReview ? goTo('warning') : closeDraft()}>다시 확인할게요</Button>
         </>}
       </>}

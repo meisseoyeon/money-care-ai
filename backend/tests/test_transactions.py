@@ -78,8 +78,9 @@ class TransactionTests(AuthTestCase):
 
         event.listen(Transaction, "before_insert", fail)
         try:
-            with self.assertRaises(RuntimeError):
-                await self.send(session)
+            with self.assertLogs("app.transactions.service", level="ERROR"):
+                response = await self.send(session)
+            self.assertEqual(response.status_code, 503)
         finally:
             event.remove(Transaction, "before_insert", fail)
         self.assertEqual(self.count(Transaction), 0)
