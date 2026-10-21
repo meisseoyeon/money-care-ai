@@ -53,6 +53,7 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
       body = { transaction: transactions[0], alert_ids: [] };
     } else if (path === '/demo/me') body = { user: { user_id: 'a' }, account: { current_balance: balance } };
     else if (path === '/demo/recipients') body = [];
+    else if (path === '/alerts') body = [{ id: 'alert-1', alert_type: 'NEW_COUNTERPARTY', status: 'NEW' }];
     else if (path === '/transactions') body = { items: cursor ? transactions.slice(1) : transactions.slice(0, 1), next_cursor: !cursor && transactions.length > 1 ? transactions[0].id : null };
     else throw new Error(`예상하지 않은 경로: ${path}`);
     return new Response(JSON.stringify(body));
@@ -62,4 +63,5 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
   const data = await api.loadData();
   assert.equal(data.account.current_balance, 679000);
   assert.deepEqual(data.transactions, transactions);
+  assert.deepEqual(data.alerts.map((a) => a.id), ['alert-1']);
 });
