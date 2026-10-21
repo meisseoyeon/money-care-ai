@@ -22,10 +22,15 @@ export function createPreparationApi(request) {
       }
       const valid = baseline && forecast && baseline.user_id === forecast.user_id
         && Number.isInteger(baseline.out_count_30d) && baseline.out_count_30d >= 0
-        && baseline.calculation_version && forecast.calculation_version
+        && baseline.calculation_version && forecast.calculation_version && /^\d{4}-\d{2}-\d{2}$/.test(baseline.base_date)
+        && forecast.id != null && forecast.snapshot_id != null
         && Number.isFinite(Date.parse(baseline.as_of)) && Number.isFinite(Date.parse(forecast.as_of))
         && Number.isInteger(forecast.remaining_days) && forecast.remaining_days >= 0
-        && ['current_balance', 'scheduled_expense_total', 'daily_living_budget', 'expected_living_cost', 'available_amount', 'shortage_amount'].every((key) => Number.isSafeInteger(forecast[key]));
+        && ['current_balance', 'scheduled_expense_total', 'daily_living_budget', 'expected_living_cost', 'available_amount', 'shortage_amount'].every((key) => Number.isSafeInteger(forecast[key]))
+        && ['scheduled_expense_total', 'daily_living_budget', 'expected_living_cost', 'shortage_amount'].every((key) => forecast[key] >= 0)
+        && forecast.expected_living_cost === forecast.remaining_days * forecast.daily_living_budget
+        && forecast.available_amount === forecast.current_balance - forecast.scheduled_expense_total - forecast.expected_living_cost
+        && forecast.shortage_amount === Math.max(0, -forecast.available_amount);
       if (!valid) return { baseline: null, forecast: null, preparation: { status: 'ERROR', source: 'api', message: '준비 결과의 형식을 확인하지 못했어요. 다시 조회해 주세요.' } };
       return { baseline, forecast, preparation: { status: 'READY', source: 'api', message: '송금 준비가 끝났어요.', baselineDate: baseline.base_date, forecastDate: seoulDate(forecast.as_of) } };
     },

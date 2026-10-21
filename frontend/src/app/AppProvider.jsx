@@ -63,7 +63,12 @@ export function AppProvider({ children }) {
     setUser(nextUser); setData(null);
     return (await reload()).user;
   };
-  const logout = async () => { ++serial.current; ++sessionEpoch.current; updatePreparation(CHECKING); await api.logout(); ++serial.current; setUser(null); setData(null); setError(''); };
+  const logout = async () => {
+    ++serial.current; ++sessionEpoch.current; updatePreparation(CHECKING);
+    try { await api.logout(); }
+    catch (e) { updatePreparation({ status: 'ERROR', message: '로그아웃하지 못했어요. 연결을 확인하고 다시 시도해 주세요.' }); throw e; }
+    ++serial.current; setUser(null); setData(null); setError('');
+  };
   const run = async (method, ...args) => {
     const epoch = sessionEpoch.current;
     if (method === 'transfer' && (!isPreparationReady(preparationRef.current) || financialCount.current > 0)) {

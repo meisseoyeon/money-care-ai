@@ -88,4 +88,4 @@ FastAPI `/docs`에서도 로그인 응답 토큰을 Authorize에 입력해 호�
 ..\.venv\Scripts\python.exe -m unittest tests.test_prepared_queries tests.test_app -v
 ```
 
-조회 API 11개 테스트와 라우팅·CORS 3개 테스트로 사용자 분리, 인증 실패, 현재 날짜·버전, 누락·오래된 결과, Decimal 직렬화, 조회 중 무변경을 검증합니다. 별도 테스트 스키마만 사용합니다. API와 공통 조회 서비스까지 제공하며 프론트 데이터 연결과 탐지 함수 호출은 이번 범위에 포함하지 않습니다.
+조회 API 11개 테스트와 라우팅·CORS 3개 테스트로 사용자 분리, 인증 실패, 현재 날짜·버전, 누락·오래된 결과, Decimal 직렬화, 조회 중 무변경을 검증합니다. 별도 테스트 스키마만 사용합니다. 프론트 데이터 연결과 준비 상태는 [FRONTEND_PREPARATION.md](FRONTEND_PREPARATION.md)를 참고하세요. 탐지 함수 호출은 포함하지 않습니다.

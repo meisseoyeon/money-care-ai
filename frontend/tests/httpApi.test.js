@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createHttpApi } from '../src/app/httpApi.js';
 import { TOKEN_KEY } from '../src/shared/lib/storageKeys.js';
+import { seoulDate } from '../src/features/preparation/state.js';
 
 function storage() {
   const data = new Map();
@@ -54,6 +55,8 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
     } else if (path === '/demo/me') body = { user: { user_id: 'a' }, account: { current_balance: balance } };
     else if (path === '/demo/recipients') body = [];
     else if (path === '/transactions') body = { items: cursor ? transactions.slice(1) : transactions.slice(0, 1), next_cursor: !cursor && transactions.length > 1 ? transactions[0].id : null };
+    else if (path === '/baselines/current') body = { user_id: 'a', out_count_30d: 0, as_of: new Date().toISOString(), base_date: seoulDate(), calculation_version: 'baseline-v1' };
+    else if (path === '/budget-forecasts/latest') body = { id: '1', snapshot_id: '1', user_id: 'a', as_of: new Date().toISOString(), remaining_days: 20, current_balance: balance, scheduled_expense_total: 150000, daily_living_budget: 20000, expected_living_cost: 400000, available_amount: balance - 550000, shortage_amount: Math.max(0, 550000 - balance), calculation_version: 'budget-v1' };
     else throw new Error(`예상하지 않은 경로: ${path}`);
     return new Response(JSON.stringify(body));
   } });

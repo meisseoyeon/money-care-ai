@@ -107,6 +107,7 @@ Flyway가 `database/migrations`의 SQL을 읽어 서비스 DB에 적용합니다
 - `transactions`: 거래내역 화면과 페이지 조회.
 - `alerts`: 알림 화면·대응 안내·문구·API.
 - `budgets`: 생활비 화면·예측 계산·설정 API.
+- `preparation`: 서버 기준 통계·생활비 결과 조회·준비 상태·공통 안내.
 - `supporters`: 지원자 화면·연결·공유 API.
 - `settings`: 설정 모달과 모니터링 설정 API.
 

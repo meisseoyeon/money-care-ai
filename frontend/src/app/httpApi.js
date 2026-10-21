@@ -32,9 +32,13 @@ export function createHttpApi(baseUrl, { storage = sessionStorage, fetchImpl = f
       const [context, recipients, history, prepared] = await Promise.all([
         request('/demo/me'), transfers.loadRecipients(), transactions.loadTransactions(), preparation.loadPreparation(),
       ]);
-      if (prepared.preparation.status === 'READY' && (context.user?.user_id !== prepared.forecast.user_id
-          || context.account?.current_balance !== prepared.forecast.current_balance)) {
-        prepared.preparation = { status: 'STALE', source: 'api', message: '잔액이 바뀌었어요. 다시 조회하고 최신 생활비를 확인해 주세요.' };
+      if ([prepared.baseline, prepared.forecast].some((result) => result && result.user_id !== context.user?.user_id)) {
+        prepared.preparation = { status: 'ERROR', source: 'api', message: '로그인 사용자와 준비 결과를 확인하지 못했어요. 다시 로그인해 주세요.' };
+        prepared.forecast = null; prepared.baseline = null;
+      } else if (prepared.forecast && (context.account?.current_balance !== prepared.forecast.current_balance
+          || (context.settings && (context.settings.daily_living_budget !== prepared.forecast.daily_living_budget
+            || context.settings.next_income_date !== prepared.forecast.next_income_date)))) {
+        prepared.preparation = { status: 'STALE', source: 'api', message: '잔액이나 생활비 계획이 바뀌었어요. 다시 조회하고 최신 결과를 확인해 주세요.' };
         prepared.forecast = null;
       }
       // 탐지·알림 API는 담당 기능 병합 시 연결합니다.
