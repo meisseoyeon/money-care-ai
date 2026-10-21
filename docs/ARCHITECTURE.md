@@ -35,8 +35,10 @@ backend/app/
   budgets/                   # 생활비 설정·예정 지출 모델과 조회
     models.py
     service.py
-  baselines/                 # 최근 30일 출금 기준 통계 계산
+  baselines/                 # 최근 30일 출금 기준 통계 계산·저장
     calculator.py            # DB·API와 독립적인 공통 계산 함수
+    models.py                # 기존 user_baselines 테이블 매핑
+    service.py               # 날짜·버전별 최초 저장·조회, 호출자가 commit
   transactions/              # 가상 송금·거래내역
     router.py
     models.py
