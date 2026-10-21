@@ -17,7 +17,7 @@
 
 | 메서드 | 경로 | 요청 / 응답 |
 |---|---|---|
-| POST | /auth/login | {username,password} → {access_token,token_type,expires_at,user} |
+| POST | /auth/login | {username,password} → 초기 통계·생활비 준비 후 {access_token,token_type,expires_at,user,initialization}; 준비 실패 503 |
 | GET | /auth/me | 현재 로그인 User와 expires_at |
 | POST | /auth/logout | 현재 로그인 세션 폐기, 204 |
 | GET | /demo/me | {user,expires_at,account,settings,expenses}; 토큰의 사용자 데이터만 |
@@ -28,6 +28,8 @@
 | GET | /transactions | 내 거래만 최신순. limit(1~200, 기본 100), cursor 지원 → {items,next_cursor}; 철회 후에도 유효 세션이면 조회 가능 |
 
 아래는 다른 기능을 연결할 때의 제안 계약입니다. 이 목록이 현재 서버에서 모두 구현되었다는 뜻은 아닙니다.
+
+로그인 응답의 `initialization`은 `{status:'READY', baseline_date, baseline_as_of, baseline_version, snapshot_id, forecast_id, forecast_as_of, forecast_version}`입니다. 준비와 새 세션은 함께 commit되며, 기존 입력이 현재 상태와 같으면 결과 ID를 재사용합니다. 자세한 동작은 [AUTH.md](AUTH.md)를 참고하세요. `/auth/me`의 기존 응답은 유지하며 새로고침만으로 재계산하지 않습니다.
 
 | 메서드 | 경로 | 요청 / 응답 |
 |---|---|---|

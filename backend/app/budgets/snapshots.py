@@ -33,13 +33,14 @@ def _utc(value: datetime) -> datetime:
 
 
 def ensure_budget_input_snapshot(
-    db: Session, *, user_id: str, run_id: str,
+    db: Session, *, user_id: str, run_id: str, reuse_current: bool = False,
 ) -> BudgetInputSnapshot:
     """사용자·실행 ID·계산 버전당 최초의 현재 입력을 저장/재사용합니다.
 
     입력을 잠근 후 DB clock_timestamp()로 기준 시각을 정합니다. 과거 입력을
     현재 데이터로 새로 만들지 않습니다. 과거 재처리는 기존 행을 조회합니다.
-    PostgreSQL READ COMMITTED에서 사용하고, 호출자가 commit/rollback합니다.
+    reuse_current=True이면 같은 한국 날짜·버전의 최신 입력이 현재 값과 같을 때
+    재사용합니다. PostgreSQL READ COMMITTED에서 사용하며 호출자가 commit/rollback합니다.
     """
     if not isinstance(user_id, str) or not user_id.strip() or len(user_id) > 100:
         raise ValueError("user_id는 공백이 아닌 1~100자여야 합니다.")
@@ -95,6 +96,19 @@ def ensure_budget_input_snapshot(
         expenses_snapshot=[dict(id=expense.id, amount=expense.amount, due_date=expense.due_date.isoformat(),
                                 status=expense.status) for expense in included],
     )
+    if reuse_current:
+        day_start = datetime.combine(today, datetime.min.time(), tzinfo=SEOUL).astimezone(timezone.utc)
+        latest = db.scalar(select(BudgetInputSnapshot).where(
+            BudgetInputSnapshot.user_id == user_id,
+            BudgetInputSnapshot.calculation_version == BUDGET_CALCULATION_VERSION,
+            BudgetInputSnapshot.as_of >= day_start,
+            BudgetInputSnapshot.as_of < day_start + timedelta(days=1),
+        ).order_by(BudgetInputSnapshot.as_of.desc(), BudgetInputSnapshot.id.desc())
+                           .execution_options(populate_existing=True).limit(1))
+        input_fields = ("balance_as_of", "next_income_date", "expected_income_amount", "daily_living_budget",
+                        "current_balance", "scheduled_expense_total", "accounts_snapshot", "expenses_snapshot")
+        if latest is not None and all(getattr(latest, name) == values[name] for name in input_fields):
+            return latest
     stored = db.scalar(insert(BudgetInputSnapshot).values(**values).on_conflict_do_nothing(
         index_elements=["user_id", "as_of", "calculation_version"],
     ).returning(BudgetInputSnapshot))

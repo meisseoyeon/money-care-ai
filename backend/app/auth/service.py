@@ -1,8 +1,10 @@
 import os
+import logging
 from datetime import timedelta
 from uuid import uuid4
 
 from fastapi import HTTPException
+from sqlalchemy.exc import SQLAlchemyError
 
 from app.auth.dependencies import issue_token, signing_key
 from app.core.time import utc_now
@@ -10,6 +12,9 @@ from app.auth.passwords import hash_password, verify_password
 from app.auth.models import AuthSession
 from app.users.models import User
 from app.users.serializers import user_response
+from app.demo.initialization import ensure_initial_preparation
+
+logger = logging.getLogger(__name__)
 
 # 존재하지 않는 아이디도 비밀번호 해시 계산을 거칩니다.
 DUMMY_HASH = hash_password("not-an-account")
@@ -27,11 +32,26 @@ def login(db, payload):
     valid = verify_password(payload.password, user.password_hash if user else DUMMY_HASH)
     if not valid or not user or user.status != "ACTIVE":
         raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
+    verified_hash = user.password_hash
+    # 준비 중의 동시 송금·로그인을 직렬화하고 잠금 대기 중 변경된 계정 상태도 확인합니다.
+    db.refresh(user, with_for_update=True)
+    if user.status != "ACTIVE" or (user.password_hash != verified_hash
+                                      and not verify_password(payload.password, user.password_hash)):
+        raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
+    session_id = str(uuid4())
+    try:
+        initialization = ensure_initial_preparation(db, user_id=user.user_id, run_id=f"init:login:{session_id}")
+    except (ValueError, LookupError, SQLAlchemyError) as exc:
+        db.rollback()
+        logger.exception("로그인 초기 준비에 실패했습니다.")
+        detail = (str(exc) if isinstance(exc, (ValueError, LookupError))
+                  else "DB 마이그레이션과 연결 상태를 확인해 주세요.")
+        raise HTTPException(503, f"체험 데이터를 준비하지 못했어요. {detail}") from exc
     now = utc_now()
-    session = AuthSession(session_id=str(uuid4()), user_id=user.user_id, created_at=now,
+    session = AuthSession(session_id=session_id, user_id=user.user_id, created_at=now,
                           expires_at=now + timedelta(seconds=ttl), revoked_at=None)
     db.add(session)
     token = issue_token(session)
     db.commit()
     return {"access_token": token, "token_type": "bearer", "expires_at": session.expires_at,
-            "user": user_response(user)}
+            "user": user_response(user), "initialization": initialization}

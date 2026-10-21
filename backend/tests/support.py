@@ -8,7 +8,7 @@ from uuid import uuid4
 
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, event, func, select
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateSchema, DropSchema
 from app.auth.dependencies import require_monitoring_consent
@@ -52,11 +52,26 @@ class AuthTestCase(unittest.IsolatedAsyncioTestCase):
                     # 매개변수가 없는 전체 DDL을 전달합니다. 함수 본문의 %도 보존합니다.
                     with conn.connection.driver_connection.cursor() as cursor:
                         cursor.execute(script, prepare=False)
+            # ORM의 스키마 변환뿐 아니라 DDL trigger 안의 테이블 조회도 격리합니다.
+            @event.listens_for(self.base_engine, "checkout")
+            def set_search_path(connection, record, proxy):
+                previous = connection.autocommit
+                connection.autocommit = True
+                try:
+                    with connection.cursor() as cursor:
+                        cursor.execute(f'SET search_path = "{self.schema}", public, pg_catalog')
+                finally:
+                    connection.autocommit = previous
             self.engine = self.base_engine.execution_options(schema_translate_map={None: self.schema})
         else:
             self.temp = tempfile.TemporaryDirectory()
             self.engine = create_engine("sqlite:///" + str(Path(self.temp.name) / "auth.db"), connect_args={"check_same_thread": False})
             Base.metadata.create_all(self.engine)
+            # 통계·생활비 저장은 PostgreSQL 통합 테스트에서 실제 실행합니다.
+            # 기존 SQLite 인증/송금 단위 테스트에는 명시적으로 준비 서비스를 대체합니다.
+            preparation = patch("app.auth.service.ensure_initial_preparation", return_value={"status": "READY"})
+            preparation.start()
+            self.addCleanup(preparation.stop)
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         self.app = FastAPI()
         self.app.include_router(auth_router)

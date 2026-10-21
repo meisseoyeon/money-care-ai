@@ -59,6 +59,7 @@ backend/app/
   demo/                      # 화면 초기 데이터를 모아 반환
     router.py
     service.py
+    initialization.py        # 로그인 시 통계·현재 입력·생활비 결과 준비
   health/
     router.py
   core/                      # 여러 기능이 쓰는 설정·시간 함수
