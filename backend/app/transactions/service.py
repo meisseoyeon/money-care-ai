@@ -1,12 +1,29 @@
 import hashlib
+import logging
 
 from fastapi import HTTPException
 from sqlalchemy import and_, or_, select
 
 from app.core.time import aware, utc_now
 from app.accounts.models import Account
+from app.ai.detection.service import run_transaction_detection
 from app.transactions.models import Transaction
 from app.recipients.catalog import RECIPIENTS
+
+logger = logging.getLogger(__name__)
+
+
+def detect_alerts(db, transaction_id):
+    # 송금은 이미 저장됐으므로 탐지가 실패해도 송금 응답은 그대로 돌려줍니다.
+    # 탐지 SQL은 PostgreSQL 전용이라 SQLite 단위 테스트에서는 건너뜁니다.
+    if db.get_bind().dialect.name != "postgresql":
+        return []
+    try:
+        return run_transaction_detection(db, transaction_id)
+    except Exception:
+        db.rollback()
+        logger.exception("transaction detection failed: %s", transaction_id)
+        return []
 
 
 def transaction_response(transaction):
@@ -35,7 +52,9 @@ def create_transfer(db, principal, payload):
                 or existing.source != "DEMO" or existing.tx_type != "TRANSFER"
                 or existing.amount != payload.amount or existing.counterparty_id != payload.counterparty_id):
             raise HTTPException(409, "같은 송금 요청으로 금액이나 받는 사람을 바꿀 수 없어요.")
-        return {"transaction": transaction_response(existing), "alert_ids": [], "forecast": None}
+        # 재전송이면 탐지도 중복 없이 기존 알림 id를 돌려줍니다.
+        return {"transaction": transaction_response(existing),
+                "alert_ids": detect_alerts(db, existing.id), "forecast": None}
     if payload.amount > account.current_balance:
         raise HTTPException(409, "통장 잔액이 부족해요. 금액을 다시 확인해 주세요.")
     now = utc_now()
@@ -48,7 +67,8 @@ def create_transfer(db, principal, payload):
     db.add(transaction)
     # 거래 기록 저장과 잔액 변경은 함께 성공하거나 함께 롤백합니다.
     db.commit()
-    return {"transaction": transaction_response(transaction), "alert_ids": [], "forecast": None}
+    return {"transaction": transaction_response(transaction),
+            "alert_ids": detect_alerts(db, transaction.id), "forecast": None}
 
 
 def list_transactions(db, user_id, limit, cursor):
