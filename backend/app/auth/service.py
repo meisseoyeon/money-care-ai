@@ -32,26 +32,32 @@ def login(db, payload):
     valid = verify_password(payload.password, user.password_hash if user else DUMMY_HASH)
     if not valid or not user or user.status != "ACTIVE":
         raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
-    verified_hash = user.password_hash
-    # 준비 중의 동시 송금·로그인을 직렬화하고 잠금 대기 중 변경된 계정 상태도 확인합니다.
-    db.refresh(user, with_for_update=True)
-    if user.status != "ACTIVE" or (user.password_hash != verified_hash
-                                      and not verify_password(payload.password, user.password_hash)):
-        raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
-    session_id = str(uuid4())
     try:
+        verified_hash = user.password_hash
+        # 잠금 순서는 기존 송금과 동일하게 유지합니다.
+        db.refresh(user, with_for_update=True)
+        if user.status != "ACTIVE" or (user.password_hash != verified_hash
+                                          and not verify_password(payload.password, user.password_hash)):
+            raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
+        session_id = str(uuid4())
         initialization = ensure_initial_preparation(db, user_id=user.user_id, run_id=f"init:login:{session_id}")
-    except (ValueError, LookupError, SQLAlchemyError) as exc:
+        now = utc_now()
+        session = AuthSession(session_id=session_id, user_id=user.user_id, created_at=now,
+                              expires_at=now + timedelta(seconds=ttl), revoked_at=None)
+        db.add(session)
+        token = issue_token(session)
+        result = {"access_token": token, "token_type": "bearer", "expires_at": session.expires_at,
+                  "user": user_response(user), "initialization": initialization}
+        # 세션 저장·토큰 생성·최종 commit 실패까지 같은 롤백 범위에 둡니다.
+        db.commit()
+        return result
+    except HTTPException:
+        db.rollback()
+        raise
+    except Exception as exc:
         db.rollback()
         logger.exception("로그인 초기 준비에 실패했습니다.")
         detail = (str(exc) if isinstance(exc, (ValueError, LookupError))
-                  else "DB 마이그레이션과 연결 상태를 확인해 주세요.")
+                  else "DB 마이그레이션과 연결 상태를 확인해 주세요." if isinstance(exc, SQLAlchemyError)
+                  else "잠시 후 다시 시도해 주세요.")
         raise HTTPException(503, f"체험 데이터를 준비하지 못했어요. {detail}") from exc
-    now = utc_now()
-    session = AuthSession(session_id=session_id, user_id=user.user_id, created_at=now,
-                          expires_at=now + timedelta(seconds=ttl), revoked_at=None)
-    db.add(session)
-    token = issue_token(session)
-    db.commit()
-    return {"access_token": token, "token_type": "bearer", "expires_at": session.expires_at,
-            "user": user_response(user), "initialization": initialization}

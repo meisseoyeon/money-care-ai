@@ -8,8 +8,9 @@ from unittest.mock import patch
 from uuid import uuid4
 
 from fastapi import HTTPException
-from sqlalchemy import func, literal, select, text
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, literal, select, text, update
+from sqlalchemy.dialects.postgresql import insert
+from sqlalchemy.exc import DBAPIError, IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import Session
 
 from app.auth.models import AuthSession
@@ -19,6 +20,8 @@ from app.auth.service import login
 from app.baselines.models import UserBaseline
 from app.budgets.models import BudgetForecast, BudgetInputSnapshot
 from app.budgets.snapshots import SEOUL
+from app.demo.initialization import ensure_initial_preparation
+from app.demo.models import InitializationRun
 from app.transactions.models import Transaction
 from tests.postgres_support import PostgresSchemaTestCase
 from tests.support import TEST_SECRET
@@ -200,6 +203,135 @@ class LoginInitializationTests(PostgresSchemaTestCase):
             self.assertEqual(baseline.out_count_30d, 29)
             self.assertEqual(forecast.current_balance, 800000)
             self.assertEqual(db.scalar(select(func.count()).select_from(Transaction).where(Transaction.user_id == "user1")), 30)
+
+    def test_reused_snapshot_run_keeps_first_result_after_input_changes(self):
+        with Session(self.engine) as db, db.begin():
+            first = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:first")
+        with Session(self.engine) as db, db.begin():
+            reused = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:reused")
+        self.assertEqual(first, reused)
+        with self.engine.begin() as conn:
+            conn.execute(text("UPDATE accounts SET current_balance=500000,balance_as_of=clock_timestamp() WHERE user_id=:id"),
+                         dict(id=self.user_id))
+        with Session(self.engine) as db, db.begin():
+            retry = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:reused")
+            fresh = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:new")
+        self.assertEqual(retry, reused)
+        self.assertNotEqual(fresh["forecast_id"], reused["forecast_id"])
+        self.assertEqual(self.counts(), (1, 2, 2, 0))
+        with Session(self.engine) as db:
+            self.assertEqual(db.scalar(select(func.count()).select_from(InitializationRun)
+                                       .where(InitializationRun.user_id == self.user_id)), 3)
+
+    def test_same_run_next_day_returns_original_results(self):
+        with Session(self.engine) as db, db.begin():
+            first = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:fixed")
+        with patch("app.budgets.snapshots.func.clock_timestamp", return_value=literal(self.now + timedelta(days=1))):
+            with Session(self.engine) as db, db.begin():
+                retry = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:fixed")
+                new = ensure_initial_preparation(db, user_id=self.user_id, run_id="job:next-day")
+        self.assertEqual(first, retry)
+        self.assertEqual(new["baseline_date"], self.today + timedelta(days=1))
+
+    def test_concurrent_same_execution_creates_one_receipt(self):
+        barrier = Barrier(2)
+
+        def initialize(index):
+            with Session(self.engine) as db, db.begin():
+                barrier.wait(timeout=10)
+                return ensure_initial_preparation(db, user_id=self.user_id, run_id="job:concurrent")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            first, second = list(pool.map(initialize, (0, 1)))
+        self.assertEqual(first, second)
+        self.assertEqual(self.counts(), (1, 1, 1, 0))
+        with Session(self.engine) as db:
+            self.assertEqual(db.scalar(select(func.count()).select_from(InitializationRun)
+                                       .where(InitializationRun.user_id == self.user_id)), 1)
+
+    def test_failed_preparation_savepoint_does_not_commit_partial_results(self):
+        for target in ("ensure_baseline", "ensure_budget_forecast", "_record_completed_run"):
+            with self.subTest(stage=target):
+                with Session(self.engine) as db, db.begin():
+                    # 호출자의 별도 변경을 유지한 채 초기 준비 오류를 잡는 경우입니다.
+                    db.execute(text("UPDATE users SET display_name='외부 작업 유지' WHERE user_id=:id"), dict(id=self.user_id))
+                    with patch(f"app.demo.initialization.{target}", side_effect=RuntimeError("stage-failed")):
+                        with self.assertRaisesRegex(RuntimeError, "stage-failed"):
+                            ensure_initial_preparation(db, user_id=self.user_id, run_id="job:failed")
+                    # 오류를 잡은 뒤 outer transaction을 commit해도 부분 결과가 남으면 안 됩니다.
+                self.assertEqual(self.counts(), (0, 0, 0, 0))
+                with Session(self.engine) as db:
+                    self.assertEqual(db.scalar(select(func.count()).select_from(InitializationRun)
+                                               .where(InitializationRun.user_id == self.user_id)), 0)
+                    self.assertEqual(db.scalar(text("SELECT display_name FROM users WHERE user_id=:id"),
+                                               dict(id=self.user_id)), "외부 작업 유지")
+        with Session(self.engine) as db, db.begin():
+            self.assertEqual(ensure_initial_preparation(db, user_id=self.user_id, run_id="job:failed")["status"], "READY")
+
+    def test_final_commit_failure_rolls_back_flushed_session_and_results(self):
+        with Session(self.engine) as db:
+            def failing_commit():
+                db.flush()  # 세션 INSERT까지 실제로 실행한 뒤 최종 확정이 실패하는 상황
+                raise SQLAlchemyError("commit-failed")
+
+            with patch.object(db, "commit", side_effect=failing_commit):
+                with self.assertLogs("app.auth.service", level="ERROR"), self.assertRaises(HTTPException) as error:
+                    login(db, LoginRequest(username=self.user_id, password="demo1234!"))
+            self.assertEqual(error.exception.status_code, 503)
+            self.assertFalse(db.in_transaction())
+        self.assertEqual(self.counts(), (0, 0, 0, 0))
+        with Session(self.engine) as db:
+            self.assertEqual(db.scalar(select(func.count()).select_from(InitializationRun)
+                                       .where(InitializationRun.user_id == self.user_id)), 0)
+        self.assertEqual(self.login()["initialization"]["status"], "READY")
+
+    def test_real_database_error_rolls_back_savepoint_and_allows_same_transaction_retry(self):
+        def invalid_receipt(db, *, user_id, run_id, baseline, forecast):
+            db.execute(insert(InitializationRun).values(
+                user_id=user_id, run_id=run_id, baseline_version=baseline.calculation_version,
+                budget_version=forecast.calculation_version,
+                baseline_date=baseline.base_date + timedelta(days=365),
+                budget_as_of=forecast.as_of, snapshot_id=forecast.snapshot_id,
+            ))
+
+        with Session(self.engine) as db, db.begin():
+            with patch("app.demo.initialization._record_completed_run", side_effect=invalid_receipt):
+                with self.assertRaises(IntegrityError):
+                    ensure_initial_preparation(db, user_id=self.user_id, run_id="job:db-failed")
+            # PostgreSQL 외래키 오류 후에도 outer transaction은 정상 사용 가능해야 합니다.
+            for model in (UserBaseline, BudgetInputSnapshot, BudgetForecast, InitializationRun):
+                self.assertEqual(db.scalar(select(func.count()).select_from(model)
+                                           .where(model.user_id == self.user_id)), 0)
+            self.assertEqual(ensure_initial_preparation(db, user_id=self.user_id, run_id="job:db-failed")["status"], "READY")
+        self.assertEqual(self.counts(), (1, 1, 1, 0))
+
+    def test_token_failure_rolls_back_and_keeps_existing_successful_login(self):
+        original = self.login()["initialization"]
+        with self.engine.begin() as conn:
+            conn.execute(text("UPDATE accounts SET current_balance=700000,balance_as_of=clock_timestamp() WHERE user_id=:id"),
+                         dict(id=self.user_id))
+        with patch("app.auth.service.issue_token", side_effect=HTTPException(503, "token-failed")):
+            with self.assertRaises(HTTPException) as error:
+                self.login()
+        self.assertEqual(error.exception.status_code, 503)
+        self.assertEqual(self.counts(), (1, 1, 1, 1))
+        with Session(self.engine) as db:
+            self.assertEqual(db.get(BudgetForecast, original["forecast_id"]).current_balance, 800000)
+            self.assertEqual(db.scalar(select(func.count()).select_from(InitializationRun)
+                                       .where(InitializationRun.user_id == self.user_id)), 1)
+
+    def test_database_protects_receipt_identity_and_immutability(self):
+        self.login()
+        with Session(self.engine) as db:
+            row = db.scalar(select(InitializationRun).where(InitializationRun.user_id == self.user_id))
+            values = {column.name: getattr(row, column.name) for column in InitializationRun.__table__.columns}
+            with self.assertRaises(IntegrityError):
+                db.execute(insert(InitializationRun).values(**values))
+            db.rollback()
+            with self.assertRaises(DBAPIError):
+                db.execute(update(InitializationRun).where(InitializationRun.user_id == self.user_id)
+                           .values(run_id="changed"))
+            db.rollback()
 
 
 if __name__ == "__main__":

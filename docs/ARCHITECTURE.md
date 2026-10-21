@@ -60,6 +60,7 @@ backend/app/
     router.py
     service.py
     initialization.py        # 로그인 시 통계·현재 입력·생활비 결과 준비
+    models.py                # V7 initialization_runs: 실행별 최초 결과 연결
   health/
     router.py
   core/                      # 여러 기능이 쓰는 설정·시간 함수

@@ -18,7 +18,11 @@ def get_baseline(
     calculation_version: str = CALCULATION_VERSION,
 ) -> UserBaseline | None:
     """지정된 날짜·버전만 조회합니다. 과거 결과로 자동 대체하지 않습니다."""
-    return db.get(UserBaseline, (user_id, base_date, calculation_version))
+    # savepoint rollback 후 identity map에 남은 Core INSERT 결과를 재사용하지 않습니다.
+    return db.scalar(select(UserBaseline).where(
+        UserBaseline.user_id == user_id, UserBaseline.base_date == base_date,
+        UserBaseline.calculation_version == calculation_version,
+    ).execution_options(populate_existing=True))
 
 
 def ensure_baseline(
