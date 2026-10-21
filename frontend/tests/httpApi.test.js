@@ -54,6 +54,7 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
       body = { transaction: transactions[0], alert_ids: [] };
     } else if (path === '/demo/me') body = { user: { user_id: 'a' }, account: { current_balance: balance } };
     else if (path === '/demo/recipients') body = [];
+    else if (path === '/alerts') body = [{ id: 'alert-1', alert_type: 'NEW_COUNTERPARTY', status: 'NEW' }];
     else if (path === '/transactions') body = { items: cursor ? transactions.slice(1) : transactions.slice(0, 1), next_cursor: !cursor && transactions.length > 1 ? transactions[0].id : null };
     else if (path === '/baselines/current') body = { user_id: 'a', out_count_30d: 0, as_of: new Date().toISOString(), base_date: seoulDate(), calculation_version: 'baseline-v1' };
     else if (path === '/budget-forecasts/latest') body = { id: '1', snapshot_id: '1', user_id: 'a', as_of: new Date().toISOString(), remaining_days: 20, current_balance: balance, scheduled_expense_total: 150000, daily_living_budget: 20000, expected_living_cost: 400000, available_amount: balance - 550000, shortage_amount: Math.max(0, 550000 - balance), calculation_version: 'budget-v1' };
@@ -65,4 +66,5 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
   const data = await api.loadData();
   assert.equal(data.account.current_balance, 679000);
   assert.deepEqual(data.transactions, transactions);
+  assert.deepEqual(data.alerts.map((a) => a.id), ['alert-1']);
 });

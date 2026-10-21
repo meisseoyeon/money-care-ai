@@ -11,6 +11,7 @@ from app.monitoring.router import router as monitoring_router
 from app.transactions.router import router as transactions_router
 from app.baselines.router import router as baselines_router
 from app.budgets.router import router as budgets_router
+from app.alerts.router import router as alerts_router
 
 app = FastAPI(title="Money Care AI")
 app.add_middleware(
@@ -19,6 +20,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 app.include_router(health_router)
 app.include_router(auth_router)
 app.include_router(demo_router)
@@ -28,3 +30,4 @@ app.include_router(monitoring_router)
 app.include_router(transactions_router)
 app.include_router(baselines_router)
 app.include_router(budgets_router)
+app.include_router(alerts_router)

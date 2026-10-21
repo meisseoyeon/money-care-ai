@@ -6,6 +6,7 @@ from sqlalchemy import and_, or_, select
 
 from app.core.time import aware, utc_now
 from app.accounts.models import Account
+from app.ai.detection.service import run_transaction_detection
 from app.transactions.models import Transaction
 from app.recipients.catalog import RECIPIENTS
 from app.budgets.schemas import ForecastResponse
@@ -14,6 +15,21 @@ from app.transactions.budgets import check_transfer_preparation, create_transfer
 from app.users.models import User
 
 logger = logging.getLogger(__name__)
+
+logger = logging.getLogger(__name__)
+
+
+def detect_alerts(db, transaction_id):
+    # 송금은 이미 저장됐으므로 탐지가 실패해도 송금 응답은 그대로 돌려줍니다.
+    # 탐지 SQL은 PostgreSQL 전용이라 SQLite 단위 테스트에서는 건너뜁니다.
+    if db.get_bind().dialect.name != "postgresql":
+        return []
+    try:
+        return run_transaction_detection(db, transaction_id)
+    except Exception:
+        db.rollback()
+        logger.exception("transaction detection failed: %s", transaction_id)
+        return []
 
 
 def transaction_response(transaction):
@@ -29,16 +45,23 @@ def create_transfer(db, principal, payload):
     try:
         result = _create_transfer(db, principal, payload)
         db.commit()
-        return result
     except HTTPException:
         db.rollback()
         raise
     except Exception as exc:
         db.rollback()
         logger.exception("송금·생활비 결과 저장에 실패했습니다.")
-        raise HTTPException(503, "송금 처리를 완료하지 못했어요. 거래내역을 확인한 뒤 다시 시도해 주세요.") from exc
+        raise HTTPException(
+            503,
+            "송금 처리를 완료하지 못했어요. "
+            "거래내역을 확인한 뒤 다시 시도해 주세요.",
+        ) from exc
 
-
+    # 송금과 생활비 결과가 저장된 뒤 탐지를 실행합니다.
+    # 완료된 요청의 재전송도 같은 거래 ID로 탐지에 전달합니다.
+    result["alert_ids"] = detect_alerts(db, result["transaction"]["id"])
+    return result
+  
 def _forecast_response(forecast):
     return ForecastResponse.model_validate(forecast).model_dump(mode="json") if forecast is not None else None
 
