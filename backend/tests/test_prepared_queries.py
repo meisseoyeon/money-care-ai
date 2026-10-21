@@ -99,18 +99,15 @@ class PreparedQueryTests(AuthTestCase):
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(self.result_counts(), before)
 
-    async def test_transfer_makes_old_forecast_stale_until_relogin(self):
+    async def test_transfer_refreshes_forecast_without_relogin(self):
         session = await self.create()
         self.assertEqual((await self.send(session, amount=100000)).status_code, 200)
         before = self.result_counts()
         response = await self.client.get(PATHS[1], headers=self.auth(session))
-        self.assertEqual(response.status_code, 409, response.text)
+        self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.headers["cache-control"], "no-store")
         self.assertEqual(self.result_counts(), before)
         self.assertEqual((await self.client.get(PATHS[0], headers=self.auth(session))).status_code, 200)
-        refreshed = await self.login()
-        response = await self.client.get(PATHS[1], headers=self.auth(refreshed))
-        self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["current_balance"], 700000)
 
     async def test_setting_and_expense_changes_require_fresh_results(self):

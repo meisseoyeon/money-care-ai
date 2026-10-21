@@ -53,6 +53,7 @@ backend/app/
     models.py
     schemas.py
     service.py
+    budgets.py               # 준비 검사·거래별 송금 후 생활비 저장·재전송 조회
   recipients/                # 합성 수취인과 사용자별 친숙 여부
     router.py
     catalog.py

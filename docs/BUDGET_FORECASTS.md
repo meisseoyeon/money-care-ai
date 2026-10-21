@@ -8,7 +8,7 @@
 - `budgets/models.py`의 `BudgetForecast`: 기존 Flyway 테이블 매핑.
 - `budgets/forecasts.py`: 사용자 소유 스냅샷 확인·최초 결과 저장·조회.
 
-로그인 초기 준비에서 자동 호출합니다. `GET /budget-forecasts/latest`로 현재 입력과 일치하는 결과를 조회하며, 없으면 404·오래됐으면 409입니다. 자세한 계약은 [PREPARED_QUERIES.md](PREPARED_QUERIES.md)를 참고하세요. 송금 자동 호출, 프론트 결과 연결, Airflow DAG는 아직 추가하지 않았습니다. 생활비 부족 여부를 알림으로 만드는 탐지·알림 로직은 와우 담당입니다. 기존 테이블과 제약을 사용하므로 새 마이그레이션은 필요 없습니다.
+로그인 초기 준비와 송금 후 잔액 변경에서 자동 호출합니다. `GET /budget-forecasts/latest`로 현재 입력과 일치하는 결과를 조회하며, 없으면 404·오래됐으면 409입니다. 프론트에서도 서버 결과를 표시합니다. 자세한 계약은 [PREPARED_QUERIES.md](PREPARED_QUERIES.md)와 [TRANSFER_BUDGETS.md](TRANSFER_BUDGETS.md)를 참고하세요. Airflow DAG는 아직 추가하지 않았습니다. 생활비 부족 여부를 알림으로 만드는 탐지·알림 로직은 와우 담당입니다. 기존 테이블과 제약을 사용하므로 새 마이그레이션은 필요 없습니다.
 
 ## 계산 규칙: budget-v1
 

@@ -2,7 +2,7 @@
 
 ## 이번 구현 범위
 
-`backend/app/baselines/calculator.py`의 `calculate_baseline`은 거래 목록으로 통계를 계산합니다. `service.py`의 `ensure_baseline`은 PostgreSQL에서 해당 거래를 조회하고 `user_baselines`에 결과를 저장합니다. 로그인 초기 준비에서 이 서비스를 호출합니다. `GET /baselines/current`는 토큰 사용자의 오늘 통계를 조회합니다. Airflow DAG와 송금 차단은 아직 연결하지 않았습니다. 탐지 조건·알림은 와우 담당으로 남겨 둡니다.
+`backend/app/baselines/calculator.py`의 `calculate_baseline`은 거래 목록으로 통계를 계산합니다. `service.py`의 `ensure_baseline`은 PostgreSQL에서 해당 거래를 조회하고 `user_baselines`에 결과를 저장합니다. 로그인 초기 준비에서 이 서비스를 호출합니다. `GET /baselines/current`는 토큰 사용자의 오늘 통계를 조회합니다. 송금은 오늘 기준이 없으면 409로 차단하며 통계를 새로 계산하지 않습니다. Airflow DAG는 아직 연결하지 않았습니다. 탐지 조건·알림은 와우 담당으로 남겨 둡니다.
 
 같은 거래와 같은 기준 시각을 전달하면 같은 결과를 반환합니다. DB 연결이나 추가 라이브러리가 필요 없어 초기화 서비스와 Airflow에서 함께 사용할 수 있습니다.
 
@@ -102,7 +102,7 @@ with session_factory()() as db:
     baseline = get_baseline(db, user_id="user1", base_date=base_date)
 ```
 
-API에 연결할 때 `user_id`는 인증된 사용자에서 가져옵니다. 로그인에서는 비밀번호를 검증한 사용자 ID로 호출하며 송금 API에는 아직 연결하지 않았습니다. 없는 사용자는 생성하지 않고 `LookupError`를 발생시킵니다. `run_id`는 공백이 아닌 1~250자이며 DB의 필수 컬럼 `airflow_run_id`에 저장합니다. Airflow에서는 실제 실행 ID를 전달합니다.
+API에 연결할 때 `user_id`는 인증된 사용자에서 가져옵니다. 로그인에서는 비밀번호를 검증한 사용자 ID로 생성하고 송금에서는 현재 통계의 존재만 검사합니다. 없는 사용자는 생성하지 않고 `LookupError`를 발생시킵니다. `run_id`는 공백이 아닌 1~250자이며 DB의 필수 컬럼 `airflow_run_id`에 저장합니다. Airflow에서는 실제 실행 ID를 전달합니다.
 
 `get_baseline`은 날짜와 버전이 정확히 일치하는 행만 반환하며, 없으면 `None`입니다. 오래된 날짜나 다른 버전으로 자동 대체하지 않습니다. `calculation_version`을 지정하면 과거 버전도 조회할 수 있습니다.
 

@@ -5,6 +5,7 @@ from datetime import timedelta
 from pathlib import Path
 from unittest.mock import patch
 from uuid import uuid4
+from types import SimpleNamespace
 
 from fastapi import Depends, FastAPI
 from httpx import ASGITransport, AsyncClient
@@ -13,6 +14,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.schema import CreateSchema, DropSchema
 from app.auth.dependencies import require_monitoring_consent
 from app.core.time import utc_now
+from app.baselines.calculator import SEOUL
 from app.auth.passwords import hash_password
 from app.db.session import get_db
 from app.db.base import Base
@@ -74,6 +76,29 @@ class AuthTestCase(unittest.IsolatedAsyncioTestCase):
             preparation = patch("app.auth.service.ensure_initial_preparation", return_value={"status": "READY"})
             preparation.start()
             self.addCleanup(preparation.stop)
+            # 송금 준비·생활비 저장은 PostgreSQL 전용 통합 테스트에서 실제 검증합니다.
+            forecasts = {}
+
+            def fake_forecast(db, *, user_id, transaction):
+                forecast = SimpleNamespace(
+                    id=transaction.id, snapshot_id=transaction.id, user_id=user_id,
+                    as_of=transaction.occurred_at, balance_as_of=transaction.occurred_at,
+                    next_income_date=transaction.occurred_at.date(), remaining_days=0,
+                    current_balance=transaction.balance_after, scheduled_expense_total=0,
+                    daily_living_budget=0, expected_living_cost=0, available_amount=transaction.balance_after,
+                    shortage_amount=0, calculation_version="test-only",
+                )
+                forecasts[transaction.id] = forecast
+                return forecast
+
+            for name, options in (
+                ("check_transfer_preparation", {"side_effect": lambda db, *, user_id: utc_now().astimezone(SEOUL).date()}),
+                ("create_transfer_forecast", {"side_effect": fake_forecast}),
+                ("find_transfer_forecast", {"side_effect": lambda db, *, user_id, transaction_id: forecasts.get(transaction_id)}),
+            ):
+                replacement = patch(f"app.transactions.service.{name}", **options)
+                replacement.start()
+                self.addCleanup(replacement.stop)
         self.sessions = sessionmaker(self.engine, expire_on_commit=False)
         self.app = FastAPI()
         self.app.include_router(auth_router)
