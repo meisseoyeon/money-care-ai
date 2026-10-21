@@ -27,6 +27,8 @@ from app.accounts.router import router as accounts_router
 from app.recipients.router import router as recipients_router
 from app.monitoring.router import router as monitoring_router
 from app.transactions.router import router as transactions_router
+from app.baselines.router import router as baselines_router
+from app.budgets.router import router as budgets_router
 
 TEST_SECRET = "auth-unit-tests-only-" + "x" * 48
 ROOT = Path(__file__).resolve().parents[2]
@@ -80,6 +82,8 @@ class AuthTestCase(unittest.IsolatedAsyncioTestCase):
         self.app.include_router(recipients_router)
         self.app.include_router(monitoring_router)
         self.app.include_router(transactions_router)
+        self.app.include_router(baselines_router)
+        self.app.include_router(budgets_router)
 
         @self.app.get("/test/transfer-guard")
         def protected(principal=Depends(require_monitoring_consent)):

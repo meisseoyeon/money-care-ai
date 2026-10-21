@@ -26,6 +26,8 @@
 | PUT | /demo/me/monitoring-consent | {consented:boolean} → User |
 | POST | /transfers | {request_id:UUID,counterparty_id,amount:정수} → {transaction,alert_ids:[],forecast:null}; 유효 세션과 모니터링 동의 필요 |
 | GET | /transactions | 내 거래만 최신순. limit(1~200, 기본 100), cursor 지원 → {items,next_cursor}; 철회 후에도 유효 세션이면 조회 가능 |
+| GET | /baselines/current | 오늘·현재 버전의 내 기준 통계. 없으면 404 |
+| GET | /budget-forecasts/latest | 현재 입력과 같은 내 최신 생활비 결과. 없으면 404, 입력이 오래되면 409 |
 
 아래는 다른 기능을 연결할 때의 제안 계약입니다. 이 목록이 현재 서버에서 모두 구현되었다는 뜻은 아닙니다.
 
@@ -37,7 +39,6 @@
 | GET | /accounts | Account[] |
 | GET | /budget-settings | BudgetSettings |
 | GET | /scheduled-expenses | Expense[] |
-| GET | /budget-forecasts/latest | Forecast; 아직 없으면 404 |
 | GET | /recipients | Recipient[] |
 | GET | /alerts | Alert[]; created_at 내림차순 |
 | GET | /supporter-links | SupporterLink[] |
@@ -83,6 +84,8 @@ SharedAlert = {...Alert, share_id, shared_at, owner_name, guide:null|Guide}
 ```
 
 Guide.steps는 문자열 또는 {instruction: "문장"}을 지원합니다. citations의 상세 필드는 src/features/alerts/Guide.jsx에서 확인하세요. 근거 문서·청크·인용을 서버에서 조합해 URL과 수집일을 반환하세요. 스크립트 URL은 UI 링크로 사용하지 않습니다.
+
+통계·생활비 조회는 [PREPARED_QUERIES.md](PREPARED_QUERIES.md)의 실제 계약을 사용합니다. 생활비 응답은 위 Forecast 필드에 문자열 `id`, `snapshot_id`, `user_id`, `balance_as_of`가 추가됩니다. 통계의 소수점 값은 문자열 또는 null로 반환합니다. 현재 프론트의 `httpApi.loadData()`에는 아직 연결하지 않았습니다.
 
 현재 화면의 alert_type은 LARGE_OUTFLOW, NEW_COUNTERPARTY, BUDGET_SHORTAGE이며 서버가 LARGE_OUT, SHORTAGE 등을 쓰면 어댑터에서 변환하세요. user_response의 HELP_REQUESTED도 팀의 HELP 코드와 매핑할 수 있습니다.
 

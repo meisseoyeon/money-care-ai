@@ -74,6 +74,8 @@ VITE_API_BASE_URL=http://localhost:8000
 | PUT | `/demo/me/monitoring-consent` | `{consented:boolean}`으로 동의·철회 |
 | POST | `/transfers` | 가상 송금. 유효 세션과 모니터링 동의 필요 |
 | GET | `/transactions` | 내 거래 최신순, limit/cursor 지원 |
+| GET | `/baselines/current` | 오늘·현재 버전의 기준 통계, 없으면 404 |
+| GET | `/budget-forecasts/latest` | 현재 입력과 일치하는 생활비 결과, 없으면 404·오래됐으면 409 |
 
 `POST /demo/sessions`와 체험 재시작 API는 제거했습니다. 새로고침 시 미완료 자동 생성 요청을 재실행하지 않습니다. 회원가입 API도 제공하지 않습니다.
 
@@ -120,7 +122,7 @@ VITE_API_BASE_URL=http://localhost:8000
 
 계좌·생활비 설정 누락, 지난 다음 수입일, 잘못된 입력, 마이그레이션·DB 오류로 준비할 수 없으면 HTTP 503으로 안내합니다. 원인을 수정한 후 다시 로그인하면 필요한 결과를 재생성합니다. 비밀번호가 틀리거나 비활성 계정이면 기존처럼 401이며 준비 서비스를 호출하지 않습니다.
 
-새로고침의 `/auth/me`는 로그인 확인만 하며 재계산하지 않습니다. 이미 발급된 토큰으로 새로고침한 경우에는 이번 초기 준비를 실행하지 않으므로, 기존 이용자는 로그아웃 후 다시 로그인해야 합니다. 송금 때 결과 갱신·준비 상태 검사, 결과 조회 API·화면 연결, 탐지·알림 실행은 별도 작업입니다.
+새로고침의 `/auth/me`는 로그인 확인만 하며 재계산하지 않습니다. 이미 발급된 토큰으로 새로고침한 경우에는 이번 초기 준비를 실행하지 않으므로, 기존 이용자는 로그아웃 후 다시 로그인해야 합니다. 결과 조회 API는 [PREPARED_QUERIES.md](PREPARED_QUERIES.md)에 설명합니다. 송금 때 결과 갱신·준비 상태 검사, 프론트 결과 연결, 탐지·알림 실행은 별도 작업입니다.
 
 현재 PostgreSQL 통합 테스트는 준비 서비스를 실제 호출합니다. 기존 SQLite 인증·송금 단위 테스트에서는 PostgreSQL 전용 준비 서비스를 명시적으로 대체합니다. 초기 SQL을 적용한 user1 로그인·재로그인·입력 변경·날짜 변경·누락 복구·동시 로그인·실패 롤백은 `tests.test_login_initialization`에서 실제 PostgreSQL로 검증합니다.
 

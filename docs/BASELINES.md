@@ -2,7 +2,7 @@
 
 ## 이번 구현 범위
 
-`backend/app/baselines/calculator.py`의 `calculate_baseline`은 거래 목록으로 통계를 계산합니다. `service.py`의 `ensure_baseline`은 PostgreSQL에서 해당 거래를 조회하고 `user_baselines`에 결과를 저장합니다. 로그인 초기 준비에서 이 서비스를 호출합니다. 통계 조회 API, Airflow DAG, 송금 차단은 아직 연결하지 않았습니다. 탐지 조건·알림은 와우 담당으로 남겨 둡니다.
+`backend/app/baselines/calculator.py`의 `calculate_baseline`은 거래 목록으로 통계를 계산합니다. `service.py`의 `ensure_baseline`은 PostgreSQL에서 해당 거래를 조회하고 `user_baselines`에 결과를 저장합니다. 로그인 초기 준비에서 이 서비스를 호출합니다. `GET /baselines/current`는 토큰 사용자의 오늘 통계를 조회합니다. Airflow DAG와 송금 차단은 아직 연결하지 않았습니다. 탐지 조건·알림은 와우 담당으로 남겨 둡니다.
 
 같은 거래와 같은 기준 시각을 전달하면 같은 결과를 반환합니다. DB 연결이나 추가 라이브러리가 필요 없어 초기화 서비스와 Airflow에서 함께 사용할 수 있습니다.
 

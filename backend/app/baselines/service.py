@@ -3,11 +3,11 @@
 from dataclasses import asdict
 from datetime import date, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.baselines.calculator import CALCULATION_VERSION, calculate_baseline
+from app.baselines.calculator import CALCULATION_VERSION, SEOUL, calculate_baseline
 from app.baselines.models import UserBaseline
 from app.transactions.models import Transaction
 from app.users.models import User
@@ -23,6 +23,13 @@ def get_baseline(
         UserBaseline.user_id == user_id, UserBaseline.base_date == base_date,
         UserBaseline.calculation_version == calculation_version,
     ).execution_options(populate_existing=True))
+
+
+def get_current_baseline(db: Session, *, user_id: str) -> UserBaseline | None:
+    """현재 한국 날짜·적용 버전의 기준만 읽고 미래 시각의 결과는 제외합니다."""
+    now = db.scalar(select(func.clock_timestamp()))
+    row = get_baseline(db, user_id=user_id, base_date=now.astimezone(SEOUL).date())
+    return row if row is not None and row.as_of <= now else None
 
 
 def ensure_baseline(

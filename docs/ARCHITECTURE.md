@@ -39,10 +39,15 @@ backend/app/
     snapshots.py             # 현재 입력 고정·최초 저장·조회, 호출자가 commit
     calculator.py            # 고정 입력으로 남은 일수·생활비·여유·부족 계산
     forecasts.py             # 입력별 최초 결과 저장·조회, 호출자가 commit
+    queries.py               # 현재 입력과 같은 최신 결과 읽기, 오래됐으면 409
+    router.py                # 인증 사용자 생활비 조회 API
+    schemas.py               # 조회 응답 필드 제한·ID 문자열 변환
   baselines/                 # 최근 30일 출금 기준 통계 계산·저장
     calculator.py            # DB·API와 독립적인 공통 계산 함수
     models.py                # 기존 user_baselines 테이블 매핑
     service.py               # 날짜·버전별 최초 저장·조회, 호출자가 commit
+    router.py                # 인증 사용자의 오늘 기준 통계 조회
+    schemas.py               # 소수점 정밀도를 유지하는 조회 DTO
   transactions/              # 가상 송금·거래내역
     router.py
     models.py

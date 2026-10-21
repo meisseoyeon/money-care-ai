@@ -4,7 +4,7 @@
 
 스냅샷은 생활비 계산에 사용한 입력을 그대로 보관하는 기록입니다. 나중에 잔액·설정·예정 지출이 바뀌더라도 저장한 입력으로 당시 계산을 재현할 수 있습니다.
 
-`backend/app/budgets/snapshots.py`에서 현재 입력 조회·고정·저장과 기존 스냅샷 조회를 제공합니다. 저장된 입력의 생활비 결과 계산·저장은 [BUDGET_FORECASTS.md](BUDGET_FORECASTS.md)를 참고하세요. 로그인 초기 준비에 연결되어 있습니다. 조회 API와 송금 자동 호출, 프론트 결과 연결, Airflow DAG는 다음 작업입니다. 탐지·알림 로직은 포함하지 않습니다.
+`backend/app/budgets/snapshots.py`에서 현재 입력 조회·고정·저장과 기존 스냅샷 조회를 제공합니다. 저장된 입력의 생활비 결과 계산·저장은 [BUDGET_FORECASTS.md](BUDGET_FORECASTS.md)를 참고하세요. 로그인 초기 준비에 연결되어 있으며 현재 생활비 결과 조회 API도 제공합니다. 스냅샷 JSON 원문 조회 API와 송금 자동 호출, 프론트 결과 연결, Airflow DAG는 다음 작업입니다. 탐지·알림 로직은 포함하지 않습니다.
 
 기존 Flyway의 `budget_input_snapshots` 테이블을 사용하므로 새 마이그레이션이나 적용한 V1 수정은 필요 없습니다. 모델은 `budgets/models.py`의 `BudgetInputSnapshot`입니다.
 
