@@ -32,9 +32,13 @@ backend/app/
     router.py
     models.py
     service.py
-  budgets/                   # 생활비 설정·예정 지출 모델과 조회
-    models.py
+  budgets/                   # 생활비 설정·예정 지출·입력·결과
+    models.py                # 설정·지출·기존 snapshots/forecasts 테이블 매핑
     service.py
+    constants.py             # 생활비 입력·결과 공통 계산 버전
+    snapshots.py             # 현재 입력 고정·최초 저장·조회, 호출자가 commit
+    calculator.py            # 고정 입력으로 남은 일수·생활비·여유·부족 계산
+    forecasts.py             # 입력별 최초 결과 저장·조회, 호출자가 commit
   baselines/                 # 최근 30일 출금 기준 통계 계산·저장
     calculator.py            # DB·API와 독립적인 공통 계산 함수
     models.py                # 기존 user_baselines 테이블 매핑
