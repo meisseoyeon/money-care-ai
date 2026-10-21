@@ -9,23 +9,74 @@
 | 루트 `compose.yaml` | 서비스 PostgreSQL, Flyway | 호스트 5433 → 컨테이너 5432 |
 | `airflow/docker-compose.yaml` | 배치 작업과 별도 Airflow 메타데이터 DB | 8080 |
 
-현재 백엔드 구현은 상태 확인 API만 포함합니다. 프런트엔드 화면의 서버 API, DB 모델, 탐지·설명·RAG는 별도 구현해야 합니다. 프런트엔드는 기본 mock 모드로 기존 동작을 유지합니다.
+현재 백엔드는 상태 확인과 공용 계정 비밀번호 인증·세션 유지·모니터링 동의·가상 송금·거래내역 API를 제공합니다. 프런트엔드는 기본 API 모드로 체험 인증과 송금·거래내역에 연결합니다. 탐지·설명·RAG API는 담당 기능 병합 시 연결해야 합니다. 전체 화면의 더미 시연은 `VITE_API_MODE=mock`으로 실행합니다. 인증 구성과 실행 방법은 [AUTH.md](AUTH.md)를 참고하세요.
 
 ## 백엔드 패키지
 
-- `app/main.py`: 앱 생성, CORS와 라우터 등록.
-- `app/core`: 환경변수, 인증 등 공통 설정. `.env`는 현재 작업 디렉터리와 관계없이 `backend/.env`에서 읽습니다.
-- `app/db`: DB 엔진과 세션 구현 위치.
-- `app/models`: SQLAlchemy 테이블 모델 구현 위치.
-- `app/schemas`: 요청·응답 데이터 모델 구현 위치.
-- `app/routers`: HTTP 요청과 오류 응답 처리. 현재 `/health` 구현.
-- `app/services`: 서비스 처리 규칙과 트랜잭션 구현 위치.
-- `app/ai/detection`: 규칙과 Isolation Forest 구현 위치.
-- `app/ai/explanation`: Gemini 설명 생성 구현 위치.
-- `app/ai/rag`: 검색과 대응 안내 구현 위치.
-- `tests`: 백엔드 검증 코드.
+기술 계층별 최상위 폴더 대신 기능별 패키지를 사용합니다. 각 기능에 필요한 파일만 둡니다.
 
-백엔드 내부 import는 `app`을 기준으로 통일합니다. 루트에서 실행할 때 Uvicorn에 `--app-dir backend`를 전달합니다.
+```text
+backend/app/
+  main.py                    # 앱 생성, CORS, 기능별 라우터 등록
+  auth/                      # 로그인·로그아웃·JWT·비밀번호 검증
+    router.py
+    schemas.py
+    service.py
+    models.py                # AuthSession
+    dependencies.py          # 현재 사용자와 동의 검사
+    passwords.py
+  users/                     # 사용자 모델과 공개 응답 변환
+    models.py
+    serializers.py
+  accounts/                  # 계좌 모델·본인 계좌 조회
+    router.py
+    models.py
+    service.py
+  budgets/                   # 생활비 설정·예정 지출 모델과 조회
+    models.py
+    service.py
+  transactions/              # 가상 송금·거래내역
+    router.py
+    models.py
+    schemas.py
+    service.py
+  recipients/                # 합성 수취인과 사용자별 친숙 여부
+    router.py
+    catalog.py
+    service.py
+  monitoring/                # 동의·철회·배치 대상 사용자 조회
+    router.py
+    schemas.py
+    service.py
+  demo/                      # 화면 초기 데이터를 모아 반환
+    router.py
+    service.py
+  health/
+    router.py
+  core/                      # 여러 기능이 쓰는 설정·시간 함수
+    config.py
+    time.py
+  db/                        # 공통 DB 연결·세션·모델 Base
+    base.py
+    session.py
+  ai/
+    detection/
+    explanation/
+    rag/
+```
+
+- `router.py`는 요청·인증 의존성과 HTTP 응답을 처리합니다.
+- `schemas.py`는 요청 데이터 검증, `service.py`는 기능 처리와 트랜잭션을 담당합니다.
+- 모든 SQLAlchemy 모델은 `app.db.base.Base`를 공유합니다. 기능별 모델 파일로 옮겨도 테이블 이름과 DB 구조는 바뀌지 않습니다.
+- `demo`는 계좌·생활비·사용자 기능의 결과를 모읍니다. 인증 기능이 demo 서비스에 의존하지 않도록 사용자 응답 변환은 users로 분리합니다.
+- 다른 기능은 인증 의존성을 `app.auth.dependencies`에서 가져옵니다. 단순 시간 처리는 인증과 분리한 `app.core.time`을 사용합니다.
+- 배치 대상 조회는 `app.monitoring.service.monitored_demo_user_ids`에 있습니다.
+- `core/config.py`는 실행 위치에 관계없이 `backend/.env`를 읽습니다.
+- API 주소는 기존 `/auth/*`, `/demo/*`, `/transfers`, `/transactions`, `/health`를 유지합니다.
+
+백엔드 내부 import는 `from app.auth.dependencies import get_current_user`처럼 기능 패키지를 기준으로 작성합니다. 루트 실행 명령은 `uvicorn app.main:app --app-dir backend`를 유지합니다.
+
+테스트는 `backend/tests/test_auth.py`, `test_transactions.py`, `test_seed.py`, `test_app.py`로 나누며 공통 계정·DB fixture는 `tests/support.py`에 둡니다.
 
 ## DB 변경
 
@@ -33,7 +84,20 @@ Flyway가 `database/migrations`의 SQL을 읽어 서비스 DB에 적용합니다
 
 ## 프런트엔드와 문서
 
-기존 8개 화면과 컴포넌트는 `frontend/src`에 유지합니다. 프런트엔드 전용 테스트도 `frontend/tests`에 유지합니다. 공통 API 계약은 `docs/API_CONTRACT.md`에서 관리합니다. ERD와 확정 API 명세도 `docs`에 추가합니다.
+프런트엔드는 기능별로 `frontend/src/features`에 모읍니다.
+
+- `auth`: 로그인 화면·세션 처리.
+- `home`: 홈 화면.
+- `transfers`: 송금 화면·사전 확인 계산·송금 API.
+- `transactions`: 거래내역 화면과 페이지 조회.
+- `alerts`: 알림 화면·대응 안내·문구·API.
+- `budgets`: 생활비 화면·예측 계산·설정 API.
+- `supporters`: 지원자 화면·연결·공유 API.
+- `settings`: 설정 모달과 모니터링 설정 API.
+
+`src/app`은 라우팅·레이아웃·Provider·API 조합을 담당합니다. `src/shared`에는 공통 UI·HTTP 클라이언트·Context·순수 도구·스타일을 두며 기능 코드에 의존하지 않습니다. 각 기능은 공통 request를 전달받는 API 모듈을 사용합니다. `mocks`는 여러 기능을 함께 시연하는 브라우저용 더미 API와 fixture를 보관합니다.
+
+진입점은 `src/main.jsx`, 실행 명령은 `npm run dev`이며 화면 주소와 API 주소는 유지합니다. 테스트는 `frontend/tests`에서 로그인·HTTP 연결·mock·송금 사전 확인을 검증합니다. 자세한 트리는 [프런트엔드 안내](../frontend/README.md)에 있습니다. 공통 API 계약은 `docs/API_CONTRACT.md`에서 관리합니다.
 
 ## Airflow
 

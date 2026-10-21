@@ -1,6 +1,8 @@
 # 내 돈 안심 · Money Care
 
-React + JavaScript + Vite로 만든 모바일 대응 프런트엔드입니다. 기본값은 **서버 없이 실행하는 더미데이터 모드**입니다. 회원가입이나 방문자 자동 생성 없이 준비된 테스트 계정으로 로그인합니다. 거래의 source는 모두 SYNTHETIC입니다.
+React + JavaScript + Vite로 만든 모바일 대응 프런트엔드입니다. 기본값은 **FastAPI 공용 계정 로그인 모드**입니다. 화면에 안내된 `user1 / demo1234!`를 직접 입력해 로그인합니다. 같은 탭의 새로고침에도 로그인은 유지되며 사용자 자동 생성·체험 재시작은 제공하지 않습니다. 공용 계정의 잔액·거래내역·설정은 다른 이용자와 공유합니다. [계정 준비와 실행 방법](../docs/AUTH.md)을 먼저 확인하세요.
+
+기존 8개 화면의 전체 송금·알림 시연은 `frontend/.env.local`에 `VITE_API_MODE=mock`을 지정하여 실행할 수 있습니다. 아래 테스트 계정과 시연 시나리오는 mock 모드용이며 실제 서버 인증과 구분합니다. API 모드에서도 가상 송금과 거래내역은 DB에 연결되어 동작합니다. 모니터링에 동의한 뒤 송금할 수 있으며 탐지·알림 등은 담당 백엔드 기능을 추가 연결해야 합니다.
 
 ## 실행하기 (Windows PowerShell)
 
@@ -63,21 +65,37 @@ build 결과는 dist/입니다. preview는 빌드 결과 확인용입니다. Has
 
 ```text
 src/
-  main.jsx                 앱 시작
-  App.jsx                  역할별 라우팅
-  styles.css               데스크톱·모바일 스타일
-  pages/                   화면 8개
-  components/              공통 UI·레이아웃·설정·대응 안내
-  context/AppContext.jsx   로그인 상태·조회·변경·재조회
-  services/
-    api.js                 mock/api 선택
-    fixtures.js            테스트 계정·정상 거래 생성
-    mockApi.js             브라우저 더미데이터 서비스
-    httpApi.js             FastAPI 연결 어댑터
-  lib/domain.js            금액 검증·예측 계산·표시 함수
-tests/                     더미 서비스·송금 사전 확인 테스트 16개
-../docs/API_CONTRACT.md     백엔드 연결 계약
+  main.jsx                       앱 시작
+  app/
+    App.jsx                      역할별 라우팅
+    AppProvider.jsx              로그인·전체 데이터·재조회 상태 관리
+    Layout.jsx                   공통 메뉴·앱 레이아웃
+    api.js                       실제 API / mock 선택
+    httpApi.js                   기능별 API 조합
+  features/
+    auth/                        로그인 화면·세션 관리
+    home/                        홈 화면
+    transfers/                   송금 화면·사전 확인 계산·API
+    transactions/                거래내역 화면·페이지 조회 API
+    alerts/                      알림 목록·상세·대응 안내·문구·API
+    budgets/                     생활비 화면·예측 계산·API
+    supporters/                  지원자 화면·연결·공유 API
+    settings/                    설정 모달·모니터링 설정 API
+  shared/
+    ui/UI.jsx                    공통 버튼·카드·모달
+    api/httpClient.js            HTTP·토큰 헤더·타임아웃·오류 처리
+    state/AppContext.js          공통 Context와 useApp 훅
+    lib/                         날짜·금액·표시·오류·통계·저장 키
+    styles/global.css            전역·반응형 스타일
+  mocks/
+    mockApi.js                   브라우저 시연 API
+    fixtures.js                  시연 계정·더미데이터
+tests/                          로그인·API·mock·송금 검증 28개
 ```
+
+각 기능 폴더에 관련 화면, 계산 함수, API 호출을 함께 둡니다. `app`은 기능들을 연결하고, `shared`는 특정 기능에 의존하지 않는 코드만 둡니다. 화면에서 공유 상태를 읽을 때는 `shared/state/AppContext.js`의 `useApp`을 사용하고, 데이터 변경과 재조회 처리는 `app/AppProvider.jsx`에서 관리합니다. 기능별 API는 request 함수를 전달받으므로 공통 HTTP 구현과 분리됩니다.
+
+기존 `/#/login`, `/#/transfer` 등의 화면 주소와 `npm run dev` 실행 방법은 유지합니다. mock 데이터 형식·브라우저 저장 키도 그대로 사용합니다. 백엔드 API 계약은 [API_CONTRACT.md](../docs/API_CONTRACT.md)를 참고하세요.
 
 ## FastAPI 연결
 
@@ -100,7 +118,7 @@ VITE_API_MODE=api
 VITE_API_BASE_URL=http://localhost:8000
 ```
 
-**현재 백엔드는 `/health`만 제공합니다.** httpApi.js의 경로와 응답 형식은 제안 계약이므로 팀의 실제 API에 맞게 바꿔야 합니다. 자세한 필드는 [API 계약](../docs/API_CONTRACT.md)을 참고하세요. 개발 프런트엔드의 기본 origin은 backend/app/core/config.py에서 CORS 허용 목록으로 관리합니다.
+**현재 백엔드는 `/auth/login`, `/auth/me`, `/auth/logout`과 공용 계정의 가상 송금·거래내역을 제공합니다.** 로그인 시 데이터는 생성하거나 초기화하지 않습니다. [공용 계정 로그인 안내](../docs/AUTH.md)와 [API 계약](../docs/API_CONTRACT.md)을 참고하세요.
 
 탐지·LLM·RAG·Airflow는 서버 담당입니다. 브라우저에 Gemini 키나 DB 접속 정보를 넣지 마세요. API 모드의 생활비 예측은 /budget-forecasts/latest 결과를 표시하며 브라우저에서 Airflow를 실행하지 않습니다.
 
@@ -112,7 +130,7 @@ VITE_API_BASE_URL=http://localhost:8000
 - 평소 지출 p95는 초기 정상 거래로 계산하고 고정합니다. 합성 데이터에서 큰 송금·새 상대 탐지를 재현하기 위한 로직이며 실제 사기 확률이 아닙니다.
 - 데이터는 10초마다, 탭 재진입 시 재조회합니다. 공유 철회 반영은 재조회 시점 기준이며 실시간 푸시는 없습니다.
 - 수입일이 지나면 테스트 데이터를 초기화해 주세요. mock의 날짜 계산은 브라우저 시간대 기준이며 실제 서버는 Asia/Seoul 기준을 합의해야 합니다.
-- API 어댑터의 목록은 현재 응답의 items만 읽습니다. 대량 거래의 서버 페이지네이션은 실제 API에 맞게 추가해야 합니다.
+- API 어댑터는 거래내역의 next_cursor를 따라 모든 페이지를 수집합니다. 화면에서는 15건씩 더 볼 수 있습니다.
 - 예정 지출 삭제는 이력 보존을 위해 CANCELLED로 처리합니다. 지원자 초대·회원가입·실제 은행 송금·관리자 화면은 범위에 포함하지 않습니다.
 - 모니터링을 끄면 이 시연에서는 가상 송금을 막습니다. 실제 서비스의 동의 철회 정책은 별도로 정해야 합니다.
 

@@ -1,33 +1,46 @@
 # FastAPI 연결 계약 (제안)
 
-현재 UI가 읽는 DTO와 경로입니다. 최종 DDL의 테이블을 그대로 반환할 필요는 없습니다. 아래처럼 조회 전용 DTO로 조합하거나 src/services/httpApi.js에서 변환하세요. **이 경로가 기존 서버에 이미 구현되어 있다는 뜻은 아닙니다.**
+현재 UI가 읽는 DTO와 경로입니다. 최종 DDL의 테이블을 그대로 반환할 필요는 없습니다. 아래처럼 조회 전용 DTO로 조합하거나 src/app/httpApi.js에서 변환하세요. **이 경로가 기존 서버에 이미 구현되어 있다는 뜻은 아닙니다.**
 
 ## 공통
 
-- Authorization: Bearer access_token. 로그인만 인증 없이 호출합니다.
+- Authorization: Bearer access_token. `/health`와 `/auth/login`만 인증 없이 호출합니다. 체험 인증은 [AUTH.md](AUTH.md)를 참고하세요.
 - user_id는 인증 토큰에서 결정하고, 요청에 들어온 타인 ID를 신뢰하지 않습니다.
 - 날짜 YYYY-MM-DD, 일시 ISO8601 오프셋 포함. 금액 JSON 정수(현재 UI는 입력 10억 원 이하), ID는 문자열 권장(BIGINT도 JS 정밀도 범위를 넘기면 문자열).
-- 목록 응답은 배열 또는 {items: [...]}입니다. 현재 어댑터는 다음 페이지를 자동 수집하지 않습니다.
+- 거래 목록은 {items: [...], next_cursor: string|null}입니다. 현재 어댑터는 다음 페이지까지 수집합니다.
 - 오류는 적절한 HTTP 상태 코드 + {detail: "메시지"}. 401은 재로그인, 403은 권한 없음, 404는 미존재, 409는 잔액·요청 충돌에 사용합니다.
 - 테스트 계정 생성은 백엔드 seed 작업입니다. 사용자 role은 화면 분기용 DTO이며 기존 users 테이블에 동일 컬럼을 추가해야 한다는 뜻은 아닙니다. 서버가 계정과 연결 관계로 결정할 수 있습니다.
 
 ## 경로
 
+다음 API는 현재 구현되어 있습니다. `/auth/login`은 이메일이 아닌 아이디(username)와 비밀번호로 로그인하며 계정을 생성하지 않습니다.
+
 | 메서드 | 경로 | 요청 / 응답 |
 |---|---|---|
-| POST | /auth/login | {email,password} → {access_token} |
+| POST | /auth/login | {username,password} → {access_token,token_type,expires_at,user} |
+| GET | /auth/me | 현재 로그인 User와 expires_at |
+| POST | /auth/logout | 현재 로그인 세션 폐기, 204 |
+| GET | /demo/me | {user,expires_at,account,settings,expenses}; 토큰의 사용자 데이터만 |
+| GET | /demo/recipients | 합성 Recipient[] |
+| GET | /demo/accounts/{account_id} | 내 Account만, 다른 사용자는 404 |
+| PUT | /demo/me/monitoring-consent | {consented:boolean} → User |
+| POST | /transfers | {request_id:UUID,counterparty_id,amount:정수} → {transaction,alert_ids:[],forecast:null}; 유효 세션과 모니터링 동의 필요 |
+| GET | /transactions | 내 거래만 최신순. limit(1~200, 기본 100), cursor 지원 → {items,next_cursor}; 철회 후에도 유효 세션이면 조회 가능 |
+
+아래는 다른 기능을 연결할 때의 제안 계약입니다. 이 목록이 현재 서버에서 모두 구현되었다는 뜻은 아닙니다.
+
+| 메서드 | 경로 | 요청 / 응답 |
+|---|---|---|
 | GET | /users/me | User |
 | GET | /accounts | Account[] |
 | GET | /budget-settings | BudgetSettings |
 | GET | /scheduled-expenses | Expense[] |
 | GET | /budget-forecasts/latest | Forecast; 아직 없으면 404 |
 | GET | /recipients | Recipient[] |
-| GET | /transactions | Transaction[]; occurred_at 내림차순 |
 | GET | /alerts | Alert[]; created_at 내림차순 |
 | GET | /supporter-links | SupporterLink[] |
 | GET | /alert-shares | Share[]; 당사자가 만든 공유만 |
 | GET | /shared-alerts | SharedAlert[]; 유효한 공유·연결만 |
-| POST | /transfers | {request_id,counterparty_id,amount} → {transaction,alert_ids,forecast} |
 | POST | /transfer-help-requests | 제안: {request_id,counterparty_id,amount} → {alert_id,share_id}; 송금 실행 없이 예정 내용 공유 |
 | POST | /alerts/{id}/seen | NEW → SEEN; 응답 완료 상태는 유지 |
 | POST | /alerts/{id}/response | {response: PLANNED 또는 UNSURE 또는 HELP_REQUESTED} |
@@ -55,7 +68,7 @@ Forecast = {as_of, next_income_date, remaining_days, current_balance,
   available_amount, shortage_amount, calculation_version}
 Recipient = {id, name, bank, account_hint, initial, familiar: boolean}
 Transaction = {id, occurred_at, direction:'IN'|'OUT', amount, balance_after,
-  tx_type, counterparty_id, description, source:'SYNTHETIC'}
+  tx_type, counterparty_id, description, source:'SYNTHETIC'|'DEMO'}
 SupporterLink = {id, owner_user_id, supporter_user_id, supporter_name,
   status:'PENDING'|'ACTIVE'|'REVOKED'}
 Share = {id, alert_id, supporter_link_id, status:'ACTIVE'|'REVOKED', shared_at}
@@ -67,7 +80,7 @@ Guide = {id, alert_id, method:'RAG'|'FALLBACK', steps:[string],
 SharedAlert = {...Alert, share_id, shared_at, owner_name, guide:null|Guide}
 ```
 
-Guide.steps는 문자열 또는 {instruction: "문장"}을 지원합니다. citations의 상세 필드는 src/components/Guide.jsx에서 확인하세요. 근거 문서·청크·인용을 서버에서 조합해 URL과 수집일을 반환하세요. 스크립트 URL은 UI 링크로 사용하지 않습니다.
+Guide.steps는 문자열 또는 {instruction: "문장"}을 지원합니다. citations의 상세 필드는 src/features/alerts/Guide.jsx에서 확인하세요. 근거 문서·청크·인용을 서버에서 조합해 URL과 수집일을 반환하세요. 스크립트 URL은 UI 링크로 사용하지 않습니다.
 
 현재 화면의 alert_type은 LARGE_OUTFLOW, NEW_COUNTERPARTY, BUDGET_SHORTAGE이며 서버가 LARGE_OUT, SHORTAGE 등을 쓰면 어댑터에서 변환하세요. user_response의 HELP_REQUESTED도 팀의 HELP 코드와 매핑할 수 있습니다.
 

@@ -1,18 +1,23 @@
 import unittest
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import text
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from app.db.session import engine
-from app.services.detection_service import run_transaction_detection
+from app.ai.detection.service import run_transaction_detection
+from app.core.config import DATABASE_URL
 
 USER_ID = "test-detection-user"
 ACCOUNT_ID = "test-detection-account"
 NOW = datetime(2026, 10, 20, 12, 0, tzinfo=timezone.utc)
 
+# 실제 로컬 DB(backend/.env의 DATABASE_URL)에 접속. 테스트가 끝나면 rollback으로 되돌림.
+engine = create_engine(DATABASE_URL, connect_args={"connect_timeout": 5}) if DATABASE_URL else None
+
 
 def db_available() -> bool:
+    if engine is None:
+        return False
     try:
         with engine.connect() as conn:
             conn.execute(text("SELECT 1"))
