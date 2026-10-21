@@ -14,6 +14,7 @@ export function createHttpApi(baseUrl, { storage = sessionStorage, fetchImpl = f
   const auth = createAuthSessions({ request, storage });
   const transfers = createTransferApi(request);
   const transactions = createTransactionApi(request);
+  const alerts = createAlertApi(request);
   return {
     mode: 'api',
     restoreSession: auth.restore,
@@ -22,16 +23,15 @@ export function createHttpApi(baseUrl, { storage = sessionStorage, fetchImpl = f
     login: auth.login,
     ...transfers,
     ...transactions,
-    ...createAlertApi(request),
+    ...alerts,
     ...createBudgetApi(request),
     ...createSettingsApi(request),
     ...createSupporterApi(request),
     async loadData() {
-      const [context, recipients, history] = await Promise.all([
-        request('/demo/me'), transfers.loadRecipients(), transactions.loadTransactions(),
+      const [context, recipients, history, alertItems] = await Promise.all([
+        request('/demo/me'), transfers.loadRecipients(), transactions.loadTransactions(), alerts.loadAlerts(),
       ]);
-      // 탐지·알림 API는 담당 기능 병합 시 연결합니다.
-      return { ...context, recipients, forecast: null, baseline: null, transactions: history, alerts: [], guides: [], links: [], shares: [] };
+      return { ...context, recipients, forecast: null, baseline: null, transactions: history, alerts: alertItems, guides: [], links: [], shares: [] };
     },
     async resetData() { throw new AppError('실제 API 모드에서는 프런트엔드에서 데이터를 초기화하지 않아요.'); },
   };
