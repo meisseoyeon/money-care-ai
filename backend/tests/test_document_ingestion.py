@@ -4,6 +4,7 @@ import os
 import tempfile
 import unittest
 from pathlib import Path
+from dataclasses import replace
 from unittest.mock import Mock
 from uuid import uuid4
 
@@ -11,6 +12,7 @@ from sqlalchemy import event, text
 
 from app.documents.ingest import cached_embedding, ingest_documents, normalized_vector, store_document
 from app.documents.prepare import DIMENSIONS, MAX_CHARS, Source, load_manifest, normalize, prepare
+from app.documents.evaluate import EvaluationCase, evaluate, load_cases, query_embedding, search_for_evaluation
 from tests.postgres_support import PostgresSchemaTestCase
 
 
@@ -95,6 +97,23 @@ class DocumentPreparationTests(unittest.TestCase):
                         [float("inf")] * DIMENSIONS, [True] * DIMENSIONS):
             with self.subTest(length=len(invalid)), self.assertRaises(ValueError):
                 normalized_vector(invalid)
+
+    def test_evaluation_gold_is_fixed_to_current_manifest_and_has_ten_cases(self):
+        root = Path(__file__).resolve().parents[2] / "database/documents"
+        docs, _ = load_manifest(root / "manifest.json")
+        ids = {c.id for d in docs for c in d.chunks}
+        cases = load_cases(root / "evaluation.json")
+        self.assertEqual(len(cases), 10)
+        self.assertEqual(sum(c.expected_no_answer for c in cases), 2)
+        self.assertTrue(all(set(c.expected_chunk_ids) <= ids for c in cases))
+        self.assertTrue(all(not ({"BEFORE_TRANSFER", "AFTER_TRANSFER"} <= set(c.tags)) for d in docs for c in d.chunks))
+
+    def test_query_uses_shared_model_with_query_task_and_same_normalization(self):
+        from unittest.mock import patch
+        with patch("app.documents.evaluate.gemini_embed", return_value=[1.0] * DIMENSIONS) as embed:
+            vector = query_embedding("합성 질문")
+        embed.assert_called_once_with("합성 질문", task_type="RETRIEVAL_QUERY")
+        self.assertAlmostEqual(math.hypot(*vector), 1)
 
 
 @unittest.skipUnless(os.getenv("DEMO_TEST_DATABASE_URL"), "PostgreSQL integration mode required")
@@ -182,3 +201,67 @@ class DocumentStorageTests(PostgresSchemaTestCase):
         with ThreadPoolExecutor(max_workers=2) as pool:
             statuses = list(pool.map(lambda _: store_document(self.engine, self.doc, [vector]), range(2)))
         self.assertCountEqual(statuses, ["IMPORTED", "UNCHANGED"])
+
+    def test_only_failed_chunk_is_retried_with_safe_per_chunk_records(self):
+        doc = prepare(source(self.root, url=self.url, paragraphs=["가" * 500, "나" * 500]), self.root)
+        self.assertEqual(len(doc.chunks), 2)
+        embed = Mock(side_effect=[[1.0] * DIMENSIONS, RuntimeError("must-not-log-this-secret")])
+        result = ingest_documents(self.engine, [doc], self.root / "cache", embed=embed)
+        self.assertEqual(result[0]["status"], "FAILED")
+        failed_path = self.root / "cache/attempts" / f"{doc.chunks[1].id}.json"
+        failed = json.loads(failed_path.read_text(encoding="utf-8"))
+        self.assertEqual(failed["chunk_id"], doc.chunks[1].id)
+        self.assertEqual(failed["status"], "FAILED")
+        self.assertEqual(failed["error_type"], "RuntimeError")
+        self.assertNotIn("must-not-log", failed_path.read_text(encoding="utf-8"))
+        retry = Mock(return_value=[1.0] * DIMENSIONS)
+        result = ingest_documents(self.engine, [doc], self.root / "cache", embed=retry)
+        self.assertEqual(result[0]["status"], "IMPORTED")
+        retry.assert_called_once_with(doc.chunks[1].content)
+        self.assertEqual(json.loads(failed_path.read_text(encoding="utf-8"))["status"], "READY")
+
+    def test_search_filters_stage_version_status_and_returns_citation_metadata(self):
+        vector = [1.0] * DIMENSIONS
+        self.doc = replace(self.doc, chunks=[replace(self.doc.chunks[0], tags=["BEFORE_TRANSFER", "TRANSFER_SCAM"])])
+        store_document(self.engine, self.doc, [vector])
+        hits = search_for_evaluation(self.engine, vector, stage="BEFORE_TRANSFER", situation_tags=["TRANSFER_SCAM"])
+        self.assertTrue(any(h["document_id"] == self.doc.id for h in hits))
+        hit = next(h for h in hits if h["document_id"] == self.doc.id)
+        self.assertEqual(hit["location"], "HTML 본문: 송금 전 확인")
+        for key in ("title", "org", "url", "document_version", "collected_at", "embedding_model", "embedding_version"):
+            self.assertTrue(hit[key])
+        self.assertFalse(any(h["document_id"] == self.doc.id for h in search_for_evaluation(
+            self.engine, vector, stage="AFTER_TRANSFER", situation_tags=["TRANSFER_SCAM"])))
+        excluded_ids = []
+        for suffix, version, status, tags in (
+            ("-version", "different", "READY", ["BEFORE_TRANSFER", "TRANSFER_SCAM"]),
+            ("-failed", "retrieval-1024-l2-v1", "FAILED", ["BEFORE_TRANSFER", "TRANSFER_SCAM"]),
+            ("-after", "retrieval-1024-l2-v1", "READY", ["AFTER_TRANSFER", "TRANSFER_SCAM"]),
+        ):
+            with self.engine.begin() as conn:
+                conn.execute(text("""INSERT INTO doc_chunks(id,document_id,chunk_index,content,content_hash,
+                    chunking_version,situation_tags,embedding_model,embedding_version,embedding_status,embedding,embedded_at)
+                    SELECT id||:suffix,document_id,chunk_index+:offset,content,content_hash,chunking_version,CAST(:tags AS jsonb),
+                    embedding_model,:version,CAST(:status AS varchar(10)),
+                    CASE WHEN CAST(:status AS varchar(10))='READY' THEN embedding ELSE NULL END,
+                    CASE WHEN CAST(:status AS varchar(10))='READY' THEN embedded_at ELSE NULL END FROM doc_chunks WHERE id=:id"""),
+                    {"id": self.doc.chunks[0].id, "suffix": suffix, "offset": len(excluded_ids)+1,
+                     "tags": json.dumps(tags), "version": version, "status": status})
+            excluded_ids.append(self.doc.chunks[0].id + suffix)
+        found = search_for_evaluation(self.engine, vector, stage="BEFORE_TRANSFER", situation_tags=["TRANSFER_SCAM"])
+        self.assertFalse(set(excluded_ids) & {h["chunk_id"] for h in found})
+        with self.engine.begin() as conn:
+            conn.execute(text("UPDATE documents SET status='RETIRED' WHERE id=:id"), {"id": self.doc.id})
+        self.assertFalse(any(h["document_id"] == self.doc.id for h in search_for_evaluation(self.engine, vector)))
+
+    def test_evaluation_does_not_use_gold_for_search_or_invent_negative_policy(self):
+        store_document(self.engine, self.doc, [[1.0] * DIMENSIONS])
+        cases = [EvaluationCase(id="test", question="합성 질문", expected_chunk_ids=[self.doc.chunks[0].id]),
+                 EvaluationCase(id="negative", question="근거 없는 질문", expected_no_answer=True)]
+        embed = Mock(return_value=[1.0] * DIMENSIONS)
+        report = evaluate(self.engine, cases, self.root / "eval-cache", embed=embed)
+        self.assertEqual(report["negative_review_required"], 1)
+        self.assertEqual(report["results"][1]["status"], "REVIEW_REQUIRED")
+        self.assertEqual([call.args for call in embed.call_args_list], [("합성 질문",), ("근거 없는 질문",)])
+        evaluate(self.engine, cases, self.root / "eval-cache", embed=embed)
+        self.assertEqual(embed.call_count, 2)

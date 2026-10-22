@@ -16,7 +16,8 @@ DIMENSIONS = 1024
 MAX_CHARS = 1500
 TARGET_CHARS = 900
 TAGS = {"VOICE_PHISHING", "PREVENTION", "AFTER_TRANSFER", "PERSONAL_DATA_EXPOSED",
-        "PAYMENT_SUSPENSION", "MESSENGER_PHISHING", "SIMPLE_TRANSFER", "EASY_TERM"}
+        "PAYMENT_SUSPENSION", "MESSENGER_PHISHING", "SIMPLE_TRANSFER", "EASY_TERM",
+        "TRANSFER_SCAM", "UNKNOWN_RECIPIENT", "BEFORE_TRANSFER"}
 
 
 def digest(value: str | bytes) -> str:
@@ -75,6 +76,8 @@ class Section(StrictModel):
     def content(self):
         if set(self.tags) - TAGS:
             raise ValueError("공통 태그 목록에 없는 값입니다.")
+        if {"BEFORE_TRANSFER", "AFTER_TRANSFER"} <= set(self.tags):
+            raise ValueError("송금 전·후 행동은 별도 섹션으로 구분해 주세요.")
         if any(not normalize(p) for p in self.paragraphs):
             raise ValueError("빈 문단은 허용하지 않습니다.")
         return self

@@ -3,9 +3,12 @@
     "heading": "메신저피싱 예방수칙",
     "location": "HTML 본문: 메신저피싱 예방수칙 문단",
     "tags": [
-      "VOICE_PHISHING",
+      "BEFORE_TRANSFER",
+      "MESSENGER_PHISHING",
       "PREVENTION",
-      "MESSENGER_PHISHING"
+      "TRANSFER_SCAM",
+      "UNKNOWN_RECIPIENT",
+      "VOICE_PHISHING"
     ],
     "paragraphs": [
       "메신저피싱은 가족, 지인을 사칭한 범죄자가 피해자에게 휴대폰 파손 등 불가피한 상황을 알리며 악성링크에 연결하도록 유도한 후 개인정보를 탈취해 자금을 편취하는 사기수법이다.",

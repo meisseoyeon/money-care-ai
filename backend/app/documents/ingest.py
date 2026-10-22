@@ -21,7 +21,7 @@ def normalized_vector(values):
     return [v / norm for v in values]
 
 
-def gemini_embed(content):
+def gemini_embed(content, *, task_type="RETRIEVAL_DOCUMENT"):
     # 이 모듈을 import하거나 앱을 시작하는 것만으로 API를 호출하지 않습니다.
     from app.core.config import GEMINI_API_KEY
     if not GEMINI_API_KEY:
@@ -30,7 +30,7 @@ def gemini_embed(content):
     from google.genai import types
     with genai.Client(api_key=GEMINI_API_KEY, http_options=types.HttpOptions(timeout=30000)) as client:
         result = client.models.embed_content(model=MODEL, contents=content,
-            config=types.EmbedContentConfig(task_type="RETRIEVAL_DOCUMENT", output_dimensionality=DIMENSIONS))
+            config=types.EmbedContentConfig(task_type=task_type, output_dimensionality=DIMENSIONS))
     if not result.embeddings or len(result.embeddings) != 1 or not result.embeddings[0].values:
         raise ValueError("청크 하나에 대한 임베딩 하나가 필요합니다.")
     return result.embeddings[0].values
@@ -140,7 +140,19 @@ def ingest_documents(engine, documents, cache_dir: Path, *, embed=gemini_embed):
             if exists:
                 status = "UNCHANGED"
             else:
-                vectors = [cached_embedding(chunk, cache_dir, embed) for chunk in doc.chunks]
+                vectors = []
+                for chunk in doc.chunks:
+                    attempt = {"document_id": doc.id, "chunk_id": chunk.id,
+                               "content_hash": chunk.content_hash,
+                               "attempted_at": datetime.now(timezone.utc).isoformat()}
+                    try:
+                        vectors.append(cached_embedding(chunk, cache_dir, embed))
+                        attempt["status"] = "READY"
+                    except Exception as exc:
+                        attempt.update(status="FAILED", error_type=type(exc).__name__)
+                        raise
+                    finally:
+                        atomic_json(cache_dir / "attempts" / f"{chunk.id}.json", attempt)
                 status = store_document(engine, doc, vectors)
             result = {"document_id": doc.id, "url": str(doc.source.url), "status": status,
                       "chunks": len(doc.chunks)}

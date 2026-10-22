@@ -4,7 +4,8 @@
 `doc_chunks`에 저장하는 수동 실행 도구입니다. 새 테이블/마이그레이션은 없습니다.
 로그인·송금·생활비·API 시작 코드는 변경하지 않습니다.
 
-자동 크롤러, PDF 추출/OCR, Airflow, 업로드 화면, RAG 검색/답변 생성은 포함하지 않습니다.
+자동 크롤러, PDF 추출/OCR, Airflow, 업로드 화면, 운영 RAG 검색/답변 생성은 포함하지 않습니다.
+고정 질문으로 DB 검색을 확인하는 개발용 평가 명령만 제공합니다.
 PDF가 필요하면 사람이 본문을 추출·검수한 뒤 아래 JSON 형식으로 준비합니다.
 
 ## 포함한 자료
@@ -82,8 +83,14 @@ Pop-Location
 작은 절차 청크는 그대로 보존합니다. 겹침 분할은 이번 MVP에서 사용하지 않습니다.
 
 태그: VOICE_PHISHING, PREVENTION, AFTER_TRANSFER, PERSONAL_DATA_EXPOSED,
-PAYMENT_SUSPENSION, MESSENGER_PHISHING, SIMPLE_TRANSFER, EASY_TERM.
+PAYMENT_SUSPENSION, MESSENGER_PHISHING, SIMPLE_TRANSFER, EASY_TERM,
+TRANSFER_SCAM, UNKNOWN_RECIPIENT, BEFORE_TRANSFER.
 예방 행동 안내는 기존 `doc_type=RESPONSE`에 PREVENTION 태그로 구분합니다.
+
+이번 자료는 검수 후 송금 전 행동에 BEFORE_TRANSFER를 추가했습니다.
+UNKNOWN_RECIPIENT는 가족·지인 신원/타인 계좌 확인 청크에만 붙였습니다.
+새 상대라는 사실만으로 사기를 판단하지 않습니다. 두 단계 태그를 같은 섹션에 함께 붙이지 않습니다.
+태그를 변경한 발췌 자료는 excerpt-v2로 적재하며 옛 인용/청크를 수정하지 않습니다.
 
 `content_hash`는 제목/원문 위치 접두사를 제외한 정리 본문의 SHA-256입니다.
 `raw_hash`는 `raw_file`이 있으면 그 파일, 없으면 검수 본문 JSON 파일 바이트의 SHA-256입니다.
@@ -124,9 +131,51 @@ PAYMENT_SUSPENSION, MESSENGER_PHISHING, SIMPLE_TRANSFER, EASY_TERM.
 - 동일 URL과 동일 본문의 동시 적재는 PostgreSQL advisory lock으로 직렬화합니다.
 - 로컬 캐시에는 벡터와 해시만 저장하며 API 키는 저장하지 않습니다.
 
-5개 대표 검증 질문: 가족이 급히 돈을 보내 달래요 / 상대가 내 정보를 알고 있어요 /
-신분증 정보가 노출됐어요 / 이미 돈을 보냈어요 / 간편송금으로 보내도 대응할 수 있나요.
-상위 결과의 적절성과 실제 대응 문구 검수는 와우님과 연결한 뒤 진행합니다.
+청크별 최근 임베딩 처리 결과는 `.cache/attempts/{chunk_id}.json`에 저장합니다.
+document_id, chunk_id, content_hash, status(READY/FAILED), attempted_at, 실패 시 error_type을
+기록합니다. 원본 API 오류 메시지와 키는 저장하지 않습니다. READY는 임베딩 준비 상태이며,
+DB 저장 성공 여부는 last-run.json의 문서 상태에서 확인합니다.
+재실행은 성공 캐시를 재사용하고 실패/미처리 청크만 API를 호출합니다.
+
+## 질문 10개 검색 검증
+
+`evaluation.json`은 Git에 저장하는 고정 정답 데이터입니다. 실행 결과나 임베딩 캐시가 아닙니다.
+검색 결과를 보기 전에 자료를 읽고 정답 청크 ID를 지정했습니다.
+송금 전 3개 / 송금 후 3개 / 개인정보 노출 2개 / 자료 밖 질문 2개입니다.
+자료 버전으로 청크 ID가 바뀌면 정답도 자료를 읽고 갱신해야 합니다.
+
+```powershell
+Push-Location backend
+python -m app.documents.evaluate ../database/documents/evaluation.json
+Pop-Location
+```
+
+실제 Gemini 질문 임베딩과 PostgreSQL 코사인 거리 검색을 실행합니다.
+질문 벡터는 `.cache/queries/`에 저장하며 같은 질문 재실행에 재사용합니다.
+질문에는 RETRIEVAL_QUERY를 사용하며 모델·차원·정규화·검증은 문서용 함수를 재사용합니다.
+정답 정보는 검색 입력/점수에 사용하지 않습니다.
+검색 결과는 청크/문서 ID, 본문, 태그, 코사인 거리(작을수록 가까움),
+제목·기관·URL·버전·수집일·발행일·원문 위치·모델/벡터 설정을 포함합니다.
+
+필터 규칙:
+
+- ACTIVE 문서 + READY 청크 + 공통 청크/임베딩 프로필만 검색합니다.
+- stage가 있으면 해당 단계 태그를 반드시 포함하고 반대 단계는 제외합니다.
+- situation_tags는 모두 일치하는 조건(AND)입니다. 단계 태그는 stage에만 지정합니다.
+- 결과 부족 시 단계 필터를 풀어 다른 단계 자료를 대신 반환하지 않습니다.
+- 수집일은 자료를 가져온 시각이며 최신성 보장이나 발행일을 뜻하지 않습니다.
+
+상세 보고서는 `.cache/evaluation-report.json`에 저장됩니다.
+양성 질문은 상위 3개 내 정답 포함(hit_at_3) 여부를 기록하고, 8개 중 7개 이상을 초기 목표로 봅니다.
+질문별 FAIL이 있으면 명령 종료 코드 1로 알려 검토하게 합니다.
+자료 밖 2개 질문은 **거리 임계값이 없으면 REVIEW_REQUIRED**이며 자동 통과시키지 않습니다.
+가까운 벡터가 있다는 것만으로 답변 가능한 근거라고 판단할 수 없기 때문입니다.
+운영용 근거 부족 정책/임계값은 와우 담당입니다. 합의한 값은 --max-distance로 검증할 수 있습니다.
+10개 정답에 맞추려고 임계값이나 정답을 바꾸지 않습니다.
+이번 5청크·10질문 결과는 연결 확인이며 검색 품질 보장이나 50개 평가 완료를 뜻하지 않습니다.
+
+와우님 전달 계약은 이 README의 모델/태그/필터/결과 형식입니다.
+운영 검색·점수/근거 부족 정책·대응 안내·화면은 변경하지 않았습니다.
 
 ## 테스트
 
