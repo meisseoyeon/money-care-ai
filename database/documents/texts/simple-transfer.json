@@ -3,10 +3,11 @@
     "heading": "간편송금 피해금 정보공유",
     "location": "HTML 본문: 금융회사와 선불업자 간 정보 공유 방법",
     "tags": [
-      "VOICE_PHISHING",
       "AFTER_TRANSFER",
+      "PAYMENT_SUSPENSION",
       "SIMPLE_TRANSFER",
-      "PAYMENT_SUSPENSION"
+      "TRANSFER_SCAM",
+      "VOICE_PHISHING"
     ],
     "paragraphs": [
       "개정 법률에서는 간편송금 서비스를 악용한 전기통신금융사기에 대한 피해구제를 강화하기 위해 금융회사와 선불업자 간 사기이용계좌 등에 관한 정보공유를 의무화했다.",
