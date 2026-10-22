@@ -21,3 +21,6 @@ test-results/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Local document embedding cache and run reports
+/database/documents/.cache/
