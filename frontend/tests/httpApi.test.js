@@ -53,6 +53,7 @@ test('송금 후 잔액과 서버 거래내역을 다시 읽고 다음 페이지
       transactions.unshift({ id: String(transactions.length + 1), amount: payload.amount, balance_after: balance });
       body = { transaction: transactions[0], alert_ids: [] };
     } else if (path === '/demo/me') body = { user: { user_id: 'a' }, account: { current_balance: balance } };
+    else if (path === '/supporter-links' || path === '/alert-shares') body = [];
     else if (path === '/demo/recipients') body = [];
     else if (path === '/alerts') body = [{ id: 'alert-1', alert_type: 'NEW_COUNTERPARTY', status: 'NEW' }];
     else if (path === '/transactions') body = { items: cursor ? transactions.slice(1) : transactions.slice(0, 1), next_cursor: !cursor && transactions.length > 1 ? transactions[0].id : null };

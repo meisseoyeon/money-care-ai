@@ -87,17 +87,38 @@ def mark_seen(db: Session, user_id: str, alert_id: str) -> dict | None:
 
 
 def save_response(db: Session, user_id: str, alert_id: str, response: str) -> dict | None:
+    from app.supporters.service import ensure_alert_share, lock_owner
+
+    try:
+        lock_owner(db, user_id)
+        owned = db.execute(text("""
+            SELECT id FROM alerts WHERE id=CAST(:alert_id AS uuid) AND user_id=:user_id FOR UPDATE
+        """), {"user_id": user_id, "alert_id": alert_id}).first()
+        if not owned:
+            db.rollback()
+            return None
+        if response == "HELP_REQUESTED":
+            ensure_alert_share(db, user_id, alert_id)
+        result = _save_response(db, user_id, alert_id, response)
+        db.commit()
+        return result
+    except Exception:
+        db.rollback()
+        raise
+
+
+def _save_response(db: Session, user_id: str, alert_id: str, response: str):
     # 보지 않고 바로 응답한 경우도 있으니 seen_at이 비어 있으면 같이 채움.
     db.execute(
         text("""
             UPDATE alerts
             SET status = 'ANSWERED',
-                user_response = :response,
-                seen_at = COALESCE(seen_at, CURRENT_TIMESTAMP),
-                responded_at = CURRENT_TIMESTAMP
+                user_response = CAST(:response AS varchar(20)),
+                seen_at = COALESCE(seen_at, statement_timestamp()),
+                responded_at = CASE WHEN user_response IS DISTINCT FROM CAST(:response AS varchar(20))
+                                    THEN statement_timestamp() ELSE responded_at END
             WHERE id = CAST(:alert_id AS uuid) AND user_id = :user_id
         """),
         {"user_id": user_id, "alert_id": alert_id, "response": response},
     )
-    db.commit()
     return get_alert(db, user_id, alert_id)

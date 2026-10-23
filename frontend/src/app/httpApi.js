@@ -20,6 +20,7 @@ export function createHttpApi(
   const transactions = createTransactionApi(request);
   const preparation = createPreparationApi(request);
   const alerts = createAlertApi(request);
+  const supporters = createSupporterApi(request);
 
   return {
     mode: 'api',
@@ -32,16 +33,23 @@ export function createHttpApi(
     ...alerts,
     ...createBudgetApi(request),
     ...createSettingsApi(request),
-    ...createSupporterApi(request),
+    ...supporters,
 
     async loadData() {
-      const [context, recipients, history, prepared, alertItems] =
+      const context = await request('/demo/me');
+      if (context.user?.role === 'SUPPORTER') {
+        return { user: context.user, sharedAlerts: await supporters.loadSharedAlerts(),
+          alerts: [], links: [], shares: [], transactions: [], recipients: [],
+          forecast: null, baseline: null, guides: [] };
+      }
+      const [recipients, history, prepared, alertItems, links, shares] =
         await Promise.all([
-          request('/demo/me'),
           transfers.loadRecipients(),
           transactions.loadTransactions(),
           preparation.loadPreparation(),
           alerts.loadAlerts(),
+          supporters.loadLinks(),
+          supporters.loadShares(),
         ]);
 
       const wrongUser = [prepared.baseline, prepared.forecast].some(
@@ -89,8 +97,8 @@ export function createHttpApi(
         transactions: history,
         alerts: alertItems,
         guides: [],
-        links: [],
-        shares: [],
+        links,
+        shares,
       };
     },
 

@@ -74,7 +74,7 @@ test('계좌와 결과가 다른 시점이면 재계산 없이 송금을 차단'
   const store = { getItem: () => 'token' };
   const api = createHttpApi('http://test', { storage: store, fetchImpl: async (url) => {
     const path = new URL(url).pathname;
-    const data = { '/demo/me': { user: { user_id: 'user1' }, account: { current_balance: 700000 } }, '/demo/recipients': [], '/transactions': { items: [] }, '/alerts': [], '/baselines/current': baseline, '/budget-forecasts/latest': forecast }[path];
+    const data = { '/demo/me': { user: { user_id: 'user1' }, account: { current_balance: 700000 } }, '/demo/recipients': [], '/transactions': { items: [] }, '/alerts': [], '/supporter-links': [], '/alert-shares': [], '/baselines/current': baseline, '/budget-forecasts/latest': forecast }[path];
     return new Response(JSON.stringify(data));
   } });
   const data = await api.loadData();
@@ -99,7 +99,7 @@ test('다른 사용자 결과나 다른 시점의 생활비 설정을 표시하�
       const path = new URL(url).pathname;
       const context = { user: { user_id: kind === 'owner' ? 'other-user' : 'user1' }, account: { current_balance: 800000 },
         ...(kind === 'settings' ? { settings: { daily_living_budget: 30000, next_income_date: '2026-11-10' } } : {}) };
-      const body = { '/demo/me': context, '/demo/recipients': [], '/transactions': { items: [] }, '/alerts': [], '/baselines/current': baseline, '/budget-forecasts/latest': forecast }[path];
+      const body = { '/demo/me': context, '/demo/recipients': [], '/transactions': { items: [] }, '/alerts': [], '/supporter-links': [], '/alert-shares': [], '/baselines/current': baseline, '/budget-forecasts/latest': forecast }[path];
       return new Response(JSON.stringify(body));
     } });
     const data = await api.loadData();
