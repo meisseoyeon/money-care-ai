@@ -12,6 +12,7 @@ from app.auth.passwords import hash_password, verify_password
 from app.auth.models import AuthSession
 from app.users.models import User
 from app.users.serializers import user_response
+from app.users.roles import user_role
 from app.demo.initialization import ensure_initial_preparation
 
 logger = logging.getLogger(__name__)
@@ -40,7 +41,8 @@ def login(db, payload):
                                           and not verify_password(payload.password, user.password_hash)):
             raise HTTPException(401, "아이디 또는 비밀번호가 올바르지 않아요.", headers={"WWW-Authenticate": "Bearer"})
         session_id = str(uuid4())
-        initialization = ensure_initial_preparation(db, user_id=user.user_id, run_id=f"init:login:{session_id}")
+        initialization = (ensure_initial_preparation(db, user_id=user.user_id, run_id=f"init:login:{session_id}")
+                          if user_role(user.user_id) == "OWNER" else None)
         now = utc_now()
         session = AuthSession(session_id=session_id, user_id=user.user_id, created_at=now,
                               expires_at=now + timedelta(seconds=ttl), revoked_at=None)

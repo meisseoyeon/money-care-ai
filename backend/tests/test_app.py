@@ -7,7 +7,7 @@ from app.main import app
 
 class AppTests(unittest.IsolatedAsyncioTestCase):
     async def test_existing_api_routes_are_registered_once(self):
-                expected = {
+        expected = {
             ("GET", "/health"),
             ("POST", "/auth/login"),
             ("GET", "/auth/me"),
@@ -20,6 +20,11 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             ("GET", "/transactions"),
             ("GET", "/baselines/current"),
             ("GET", "/budget-forecasts/latest"),
+            ("GET", "/supporter-links"),
+            ("GET", "/alert-shares"),
+            ("GET", "/shared-alerts"),
+            ("POST", "/alert-shares/{share_id}/revoke"),
+            ("POST", "/supporter-links/{link_id}/revoke"),
             ("GET", "/alerts"),
             ("POST", "/alerts/{alert_id}/seen"),
             ("POST", "/alerts/{alert_id}/response"),

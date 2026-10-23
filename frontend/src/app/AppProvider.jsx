@@ -37,7 +37,7 @@ export function AppProvider({ children }) {
         else {
           setError(e.message);
           updatePreparation({ status: 'ERROR', message: '준비 상태를 확인하지 못했어요. 연결을 확인하고 다시 조회해 주세요.' });
-          setData((previous) => previous ? { ...previous, forecast: null, baseline: null } : null);
+          setData((previous) => previous ? { ...previous, forecast: null, baseline: null, sharedAlerts: [] } : null);
         }
       },
     });
@@ -82,6 +82,8 @@ export function AppProvider({ children }) {
     try {
       const result = await api[method](...args);
       if (epoch !== sessionEpoch.current) throw new AppError('체험이 변경되었어요. 다시 시도해 주세요.', 409);
+      // 철회 전에 시작한 자동 조회를 재사용해 공유가 다시 보이지 않도록 합니다.
+      if (!financial) reloadController.current.invalidate();
       // 확정된 송금을 조회 실패 때문에 실패한 송금으로 표시하지 않습니다.
       try { await reload({ background: !financial }); } catch { /* reload가 준비 실패와 송금 차단 상태를 설정합니다. */ }
       return result;
