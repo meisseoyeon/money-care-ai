@@ -28,6 +28,7 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             ("GET", "/alerts"),
             ("POST", "/alerts/{alert_id}/seen"),
             ("POST", "/alerts/{alert_id}/response"),
+            ("POST", "/alerts/{alert_id}/guide"),
         }
         registered = [(method, path) for path, methods in app.openapi()["paths"].items()
                       for method in (method.upper() for method in methods)]

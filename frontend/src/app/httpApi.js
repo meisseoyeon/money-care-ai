@@ -96,7 +96,7 @@ export function createHttpApi(
         ...prepared,
         transactions: history,
         alerts: alertItems,
-        guides: [],
+        guides: alertItems.filter((a) => a.guide).map((a) => a.guide),
         links,
         shares,
       };
