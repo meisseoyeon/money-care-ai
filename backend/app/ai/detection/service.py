@@ -174,7 +174,7 @@ def run_transaction_detection(db: Session, transaction_id: str) -> list[str]:
     if baseline is not None and baseline["p95_out_amount"] is not None:
         p95 = int(round(baseline["p95_out_amount"]))
 
-    # 4. 규칙 실행  ← TODO(와우): 여기를 채워 보세요
+    # 4. 규칙 실행
     #   - check_new_counterparty 에 (이번 상대 id, 과거 상대 목록)을 넣어 실행
     #   - check_large_outflow 에 (이번 금액, p95)를 넣어 실행
     #   - 결과가 None이 아닌 것만 results 리스트에 append

@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from app.ai.rag import guide_service
 from app.alerts import service as alert_service
 from app.auth.dependencies import get_current_user_id
 from app.db.session import get_db
@@ -46,3 +47,11 @@ def post_response(alert_id: str, body: ResponseIn,
     if alert is None:
         raise HTTPException(status_code=404, detail="알림을 찾을 수 없어요.")
     return alert
+
+@router.post("/{alert_id}/guide")
+def post_guide(alert_id: str, user_id: str = Depends(get_current_user_id), db: Session = Depends(get_db)):
+    _check_id(alert_id)
+    guide = guide_service.get_or_create_guide(db, user_id, alert_id)
+    if guide is None:
+        raise HTTPException(status_code=404, detail="알림을 찾을 수 없어요.")
+    return guide

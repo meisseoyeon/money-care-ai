@@ -14,11 +14,14 @@ ALERT_SELECT = """
               FROM detections d3
              WHERE d3.user_id = a.user_id AND d3.event_key = d.event_key
                AND d3.detection_type = 'LARGE_OUTFLOW' AND d3.execution_mode = 'LIVE'
-             LIMIT 1) AS p95_out_amount
+             LIMIT 1) AS p95_out_amount,
+           g.id AS guide_id, g.method AS guide_method, g.steps AS guide_steps,
+           g.generated_at AS guide_generated_at
     FROM alerts a
     JOIN detections d ON d.id = a.detection_id
     LEFT JOIN transactions t ON t.id = d.transaction_id AND t.user_id = a.user_id
     LEFT JOIN alert_explanations e ON e.alert_id = a.id AND e.generation_status = 'SUCCEEDED'
+    LEFT JOIN alert_guides g ON g.alert_id = a.id AND g.generation_status = 'SUCCEEDED'
 """
 
 
@@ -31,6 +34,20 @@ def make_title(alert_type: str, triggered_rules: list[str]) -> str:
     if alert_type == "NEW_COUNTERPARTY":
         return "처음 보내는 사람에게 돈을 보냈어요"
     return "확인이 필요한 알림이에요"
+
+
+def _guide_dto(row) -> dict | None:
+    """대응 안내가 있으면 프런트가 읽는 Guide 모양으로, 없으면 None."""
+    if row["guide_id"] is None:
+        return None
+    return {
+        "id": str(row["guide_id"]),
+        "alert_id": str(row["id"]),
+        "method": row["guide_method"],
+        "steps": [step["instruction"] for step in row["guide_steps"]],
+        "citations": [],  # RAG(E-3)에서 출처 추가
+        "generated_at": row["guide_generated_at"].isoformat(),
+    }
 
 
 def _to_dto(row) -> dict:
@@ -53,7 +70,7 @@ def _to_dto(row) -> dict:
             "p95_out_amount": row["p95_out_amount"],
             "triggered_rules": rules,
         },
-        "guide": None,  # 대응 안내는 10/24~26(E)에 추가
+        "guide": _guide_dto(row),
     }
 
 
