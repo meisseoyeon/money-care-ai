@@ -1,0 +1,18 @@
+[
+  { "id": "S01", "description": "평소 보내던 친구에게 평소 금액", "counterparty_id": "demo-payee-1", "amount": 20000, "label": "NORMAL" },
+  { "id": "S02", "description": "모르는 사람이 급하다며 돈을 부탁해서 송금", "counterparty_id": "unknown-scam-1", "amount": 300000, "label": "RISK" },
+  { "id": "S03", "description": "친구인 척한 메신저 피싱. 이름은 친구인데 처음 보는 계좌", "counterparty_id": "unknown-scam-2", "amount": 50000, "label": "RISK" },
+  { "id": "S04", "description": "평소 친구에게 생일 선물로 평소보다 많이 보냄 (계획한 송금)", "counterparty_id": "demo-payee-2", "amount": 100000, "label": "NORMAL" },
+  { "id": "S05", "description": "중고거래로 처음 보는 판매자에게 물건값을 보냄 (정상 거래)", "counterparty_id": "unknown-seller-1", "amount": 15000, "label": "NORMAL" },
+  { "id": "S06", "description": "새로 사귄 친구에게 밥값을 나눠서 보냄", "counterparty_id": "demo-payee-5", "amount": 12000, "label": "NORMAL" },
+  { "id": "S07", "description": "대출을 해 준다며 수수료를 먼저 보내라는 사기", "counterparty_id": "unknown-scam-3", "amount": 50000, "label": "RISK" },
+  { "id": "S08", "description": "검찰이라며 돈을 안전한 계좌로 옮기라는 기관 사칭", "counterparty_id": "unknown-scam-4", "amount": 500000, "label": "RISK" },
+  { "id": "S09", "description": "친구 계정이 해킹돼서, 친구 계좌로 평소 금액을 보내게 만든 사기", "counterparty_id": "demo-payee-3", "amount": 25000, "label": "RISK" },
+  { "id": "S10", "description": "아는 사람이 꾀어서 평소보다 훨씬 큰돈을 보냄", "counterparty_id": "demo-payee-4", "amount": 200000, "label": "RISK" },
+  { "id": "S11", "description": "평소 친구에게 평소 기준 바로 아래 금액", "counterparty_id": "demo-payee-1", "amount": 27000, "label": "NORMAL" },
+  { "id": "S12", "description": "평소 친구에게 평소 기준 바로 위 금액", "counterparty_id": "demo-payee-1", "amount": 28000, "label": "NORMAL" },
+  { "id": "S13", "description": "매달 내는 모임 회비를 평소 친구에게 보냄", "counterparty_id": "demo-payee-3", "amount": 30000, "label": "NORMAL" },
+  { "id": "S14", "description": "중고거래 사기. 처음 보는 판매자에게 돈만 보내고 물건을 못 받음", "counterparty_id": "unknown-scam-5", "amount": 15000, "label": "RISK" },
+  { "id": "S15", "description": "친구에게 빌린 돈을 갚음", "counterparty_id": "demo-payee-4", "amount": 20000, "label": "NORMAL" },
+  { "id": "S16", "description": "문자 속 링크를 눌러서 모르는 곳에 소액 결제", "counterparty_id": "unknown-scam-6", "amount": 9900, "label": "RISK" }
+]

@@ -1,0 +1,136 @@
+{
+  "p95_out_amount": 27760,
+  "history_count": 30,
+  "tp": 7,
+  "fn": 1,
+  "fp": 5,
+  "tn": 3,
+  "recall": 0.875,
+  "precision": 0.5833333333333334,
+  "rows": [
+    {
+      "id": "S01",
+      "label": "NORMAL",
+      "alerted": false,
+      "rules": []
+    },
+    {
+      "id": "S02",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY",
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S03",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY",
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S04",
+      "label": "NORMAL",
+      "alerted": true,
+      "rules": [
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S05",
+      "label": "NORMAL",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY"
+      ]
+    },
+    {
+      "id": "S06",
+      "label": "NORMAL",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY"
+      ]
+    },
+    {
+      "id": "S07",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY",
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S08",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY",
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S09",
+      "label": "RISK",
+      "alerted": false,
+      "rules": []
+    },
+    {
+      "id": "S10",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S11",
+      "label": "NORMAL",
+      "alerted": false,
+      "rules": []
+    },
+    {
+      "id": "S12",
+      "label": "NORMAL",
+      "alerted": true,
+      "rules": [
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S13",
+      "label": "NORMAL",
+      "alerted": true,
+      "rules": [
+        "LARGE_OUTFLOW"
+      ]
+    },
+    {
+      "id": "S14",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY"
+      ]
+    },
+    {
+      "id": "S15",
+      "label": "NORMAL",
+      "alerted": false,
+      "rules": []
+    },
+    {
+      "id": "S16",
+      "label": "RISK",
+      "alerted": true,
+      "rules": [
+        "NEW_COUNTERPARTY"
+      ]
+    }
+  ]
+}
