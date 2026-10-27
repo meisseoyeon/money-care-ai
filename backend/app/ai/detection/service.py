@@ -175,9 +175,6 @@ def run_transaction_detection(db: Session, transaction_id: str) -> list[str]:
         p95 = int(round(baseline["p95_out_amount"]))
 
     # 4. 규칙 실행
-    #   - check_new_counterparty 에 (이번 상대 id, 과거 상대 목록)을 넣어 실행
-    #   - check_large_outflow 에 (이번 금액, p95)를 넣어 실행
-    #   - 결과가 None이 아닌 것만 results 리스트에 append
     results: list[RuleResult] = []
 
     # 규칙 1: 처음 보는 상대인가?
@@ -185,7 +182,7 @@ def run_transaction_detection(db: Session, transaction_id: str) -> list[str]:
     if new_cp is not None:
         results.append(new_cp)
 
-    # 규칙 2: 평소보다 큰 금액인가?  ← 이 부분을 위와 같은 모양으로 직접 써 보세요
+    # 규칙 2: 평소보다 큰 금액인가?
     large_outflow = check_large_outflow(tx["amount"], p95)
     if large_outflow is not None:
         results.append(large_outflow)
