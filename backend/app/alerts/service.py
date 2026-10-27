@@ -16,7 +16,15 @@ ALERT_SELECT = """
                AND d3.detection_type = 'LARGE_OUTFLOW' AND d3.execution_mode = 'LIVE'
              LIMIT 1) AS p95_out_amount,
            g.id AS guide_id, g.method AS guide_method, g.steps AS guide_steps,
-           g.generated_at AS guide_generated_at
+           g.generated_at AS guide_generated_at,
+           (SELECT COALESCE(jsonb_agg(DISTINCT jsonb_build_object(
+                       'chunk_id', c.id, 'title', doc.title, 'org', doc.org, 'url', doc.url,
+                       'collected_at', to_char(doc.collected_at AT TIME ZONE 'Asia/Seoul', 'YYYY-MM-DD'))),
+                   '[]'::jsonb)
+              FROM guide_citations gc
+              JOIN doc_chunks c ON c.id = gc.chunk_id
+              JOIN documents doc ON doc.id = c.document_id
+             WHERE gc.guide_id = g.id) AS guide_citations
     FROM alerts a
     JOIN detections d ON d.id = a.detection_id
     LEFT JOIN transactions t ON t.id = d.transaction_id AND t.user_id = a.user_id
@@ -45,7 +53,7 @@ def _guide_dto(row) -> dict | None:
         "alert_id": str(row["id"]),
         "method": row["guide_method"],
         "steps": [step["instruction"] for step in row["guide_steps"]],
-        "citations": [],  # RAG(E-3)에서 출처 추가
+        "citations": list(row["guide_citations"] or []),  # RAG 안내의 근거 문서 (고정 안내는 빈 목록)
         "generated_at": row["guide_generated_at"].isoformat(),
     }
 
