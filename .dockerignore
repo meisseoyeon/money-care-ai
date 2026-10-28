@@ -1,0 +1,11 @@
+# deploy/web.Dockerfile이 저장소 루트를 빌드 맥락으로 씀. 큰 폴더와 비밀값은 제외.
+.git
+.venv
+**/node_modules
+**/__pycache__
+**/.cache
+**/dist
+**/.env
+**/.env.*
+!**/.env.example
+airflow
