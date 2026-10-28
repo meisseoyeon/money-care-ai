@@ -1,0 +1,55 @@
+{
+  "documents": [
+    {
+      "title": "최근 금융권 개인정보 유출사고에 따른 보이스피싱·스미싱 등 피해에 주의하세요. (본문 발췌)",
+      "org": "개인정보보호위원회(관계기관 합동 보도자료)",
+      "publisher": "대한민국 정책브리핑",
+      "url": "https://m.korea.kr/briefing/pressReleaseView.do?newsId=156784413&pWise=mSub&pWiseSub=C1",
+      "document_version": "2026-10-06-excerpt-v2",
+      "doc_type": "RESPONSE",
+      "collected_at": "2026-10-22T05:27:03+00:00",
+      "published_at": "2026-10-06T00:00:00+09:00",
+      "review_status": "APPROVED",
+      "license": "KOGL-1",
+      "license_url": "https://m.korea.kr/briefing/pressReleaseView.do?newsId=156784413&pWise=mSub&pWiseSub=C1",
+      "license_checked_at": "2026-10-22T05:27:03+00:00",
+      "attachment_license": "NOT_USED",
+      "review_note": "2026-10-06 공식 본문의 예방·개인정보 노출·송금 후 대응 문단만 발췌. 사진·첨부·보도 담당자 연락처·기한 안내 제외. 해당 게시글의 텍스트 공공누리 제1유형 표시 확인.",
+      "body_file": "texts/privacy-response.json"
+    },
+    {
+      "title": "가족·지인 사칭 메신저피싱 주의하세요 (예방수칙 발췌)",
+      "org": "방송통신위원회·금융위원회·경찰청·금융감독원",
+      "publisher": "대한민국 정책브리핑",
+      "url": "https://www.korea.kr/news/policyNewsView.do?newsId=148901587",
+      "document_version": "2022-05-13-excerpt-v2",
+      "doc_type": "RESPONSE",
+      "collected_at": "2026-10-22T05:27:03+00:00",
+      "published_at": "2022-05-13T00:00:00+09:00",
+      "review_status": "APPROVED",
+      "license": "KOGL-1",
+      "license_url": "https://www.korea.kr/news/policyNewsView.do?newsId=148901587",
+      "license_checked_at": "2026-10-22T05:27:03+00:00",
+      "attachment_license": "NOT_USED",
+      "review_note": "2022 자료의 일반적인 가족·지인 확인 예방수칙만 포함. 당시 통계·기관장·신고 연락처·제도 절차는 제외. 송금 후 대응은 2026 자료를 우선 사용. 해당 게시글의 텍스트 공공누리 제1유형 표시 확인.",
+      "body_file": "texts/messenger-prevention.json"
+    },
+    {
+      "title": "간편송금 악용한 보이스피싱, 신속 지급정지 가능해진다 (정보공유 설명 발췌)",
+      "org": "금융위원회",
+      "publisher": "대한민국 정책브리핑",
+      "url": "https://www.korea.kr/news/policyNewsView.do?newsId=148932788",
+      "document_version": "2024-08-19-excerpt-v2",
+      "doc_type": "RESPONSE",
+      "collected_at": "2026-10-22T05:27:03+00:00",
+      "published_at": "2024-08-19T00:00:00+09:00",
+      "review_status": "APPROVED",
+      "license": "KOGL-1",
+      "license_url": "https://www.korea.kr/news/policyNewsView.do?newsId=148932788",
+      "license_checked_at": "2026-10-22T05:27:03+00:00",
+      "attachment_license": "NOT_USED",
+      "review_note": "간편송금 피해금의 정보공유 취지 설명만 발췌. 환급 보장·이용자 신청기한·최신 법령 전체를 뜻하지 않음. 실제 대응 연락은 2026 자료 사용. 해당 게시글의 텍스트 공공누리 제1유형 표시 확인.",
+      "body_file": "texts/simple-transfer.json"
+    }
+  ]
+}

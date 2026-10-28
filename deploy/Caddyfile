@@ -1,0 +1,17 @@
+# SITE_ADDRESS가 비어 있으면 :80 (서버 IP로 http 접속).
+# 도메인(예: moneycare.duckdns.org)을 넣으면 Caddy가 HTTPS 인증서를 자동으로 발급.
+{$SITE_ADDRESS::80} {
+	encode gzip
+
+	# /api/alerts → 백엔드의 /alerts
+	handle_path /api/* {
+		reverse_proxy backend:8000
+	}
+
+	# 그 밖의 주소는 프런트 화면 파일
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

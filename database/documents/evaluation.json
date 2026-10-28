@@ -1,0 +1,118 @@
+[
+  {
+    "id": "Q01",
+    "question": "가족이 메신저로 급하게 돈을 보내 달라고 해요. 먼저 어떻게 확인해요?",
+    "stage": "BEFORE_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM",
+      "UNKNOWN_RECIPIENT"
+    ],
+    "expected_chunk_ids": [
+      "chunk-2697ce6644fa71e2bdbc52145430578feaaccc13db7168d3cca2ba5cf14b07a8"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q02",
+    "question": "아는 사람이 자기 계좌가 아닌 다른 사람 계좌로 보내 달래요. 확인할 것이 있나요?",
+    "stage": "BEFORE_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM",
+      "UNKNOWN_RECIPIENT"
+    ],
+    "expected_chunk_ids": [
+      "chunk-2697ce6644fa71e2bdbc52145430578feaaccc13db7168d3cca2ba5cf14b07a8"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q03",
+    "question": "전화한 사람이 내 대출한도를 알고 있어요. 정상 금융회사 직원이라고 믿어도 되나요?",
+    "stage": "BEFORE_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM"
+    ],
+    "expected_chunk_ids": [
+      "chunk-e94392575e26c15bde8dffd7683a24d5c2c78dd3c475739a74db1cbd40380548"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q04",
+    "question": "사기범에게 속아서 이미 돈을 이체했어요. 어디에 연락해야 하나요?",
+    "stage": "AFTER_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM"
+    ],
+    "expected_chunk_ids": [
+      "chunk-1c9df464958aa2186637627971f4a94fc74aeed1cc528bc98395149d9ee311a5"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q05",
+    "question": "이미 보낸 돈의 계좌 지급정지를 요청하려고 해요. 어떻게 해야 하나요?",
+    "stage": "AFTER_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM",
+      "PAYMENT_SUSPENSION"
+    ],
+    "expected_chunk_ids": [
+      "chunk-1c9df464958aa2186637627971f4a94fc74aeed1cc528bc98395149d9ee311a5"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q06",
+    "question": "간편송금 서비스를 거쳐 돈을 보냈어도 피해금의 흐름을 확인할 수 있나요?",
+    "stage": "AFTER_TRANSFER",
+    "situation_tags": [
+      "TRANSFER_SCAM",
+      "SIMPLE_TRANSFER"
+    ],
+    "expected_chunk_ids": [
+      "chunk-f1a66b48f765908f0491fbae4b0fe0dd69a150bc94cb3b78e171bead101f4800"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q07",
+    "question": "개인정보가 유출됐어요. 내 명의 계좌나 카드 발급 피해를 줄일 방법이 있나요?",
+    "stage": null,
+    "situation_tags": [
+      "PERSONAL_DATA_EXPOSED"
+    ],
+    "expected_chunk_ids": [
+      "chunk-edcc4d1be87a31b2bb5d5c136999da15bb9e5f558e15a9ed93a75b78fdcc2b39"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q08",
+    "question": "파인 개인정보노출자 사고예방시스템에 등록하면 무엇이 제한되나요?",
+    "stage": null,
+    "situation_tags": [
+      "PERSONAL_DATA_EXPOSED"
+    ],
+    "expected_chunk_ids": [
+      "chunk-edcc4d1be87a31b2bb5d5c136999da15bb9e5f558e15a9ed93a75b78fdcc2b39"
+    ],
+    "expected_no_answer": false
+  },
+  {
+    "id": "Q09",
+    "question": "이번 달 정기예금 상품별 금리를 알려 주세요.",
+    "stage": null,
+    "situation_tags": [],
+    "expected_chunk_ids": [],
+    "expected_no_answer": true
+  },
+  {
+    "id": "Q10",
+    "question": "병원 진료 예약 날짜를 바꾸는 방법을 알려 주세요.",
+    "stage": null,
+    "situation_tags": [],
+    "expected_chunk_ids": [],
+    "expected_no_answer": true
+  }
+]

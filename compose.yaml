@@ -1,6 +1,6 @@
 services:
   db:
-    image: postgres:17
+    image: pgvector/pgvector:0.8.7-pg17-bookworm
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -14,6 +14,24 @@ services:
       interval: 5s
       timeout: 5s
       retries: 10
+
+  flyway:
+    image: redgate/flyway:13.10.0-alpine
+    profiles: ["migration"]
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/sql
+      FLYWAY_CONNECT_RETRIES: "10"
+      FLYWAY_CLEAN_DISABLED: "true"
+      FLYWAY_VALIDATE_MIGRATION_NAMING: "true"
+    volumes:
+      - ./database/migrations:/flyway/sql:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    command: info
 
 volumes:
   postgres_data:
