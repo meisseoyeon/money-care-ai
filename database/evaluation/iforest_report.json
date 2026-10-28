@@ -1,0 +1,137 @@
+{
+  "detector_version": "iforest-v1",
+  "execution_mode": "SHADOW",
+  "train_count": 29,
+  "threshold": -0.6573544469380658,
+  "threshold_percentile": 5,
+  "rules": {
+    "tp": 7,
+    "fn": 1,
+    "fp": 5,
+    "tn": 3,
+    "recall": 0.875,
+    "precision": 0.5833333333333334
+  },
+  "iforest": {
+    "tp": 5,
+    "fn": 3,
+    "fp": 2,
+    "tn": 6,
+    "recall": 0.625,
+    "precision": 0.7142857142857143
+  },
+  "rows": [
+    {
+      "id": "S01",
+      "label": "NORMAL",
+      "rule_alerted": false,
+      "iforest_alerted": false,
+      "iforest_score": -0.5163
+    },
+    {
+      "id": "S02",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6618
+    },
+    {
+      "id": "S03",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6618
+    },
+    {
+      "id": "S04",
+      "label": "NORMAL",
+      "rule_alerted": true,
+      "iforest_alerted": false,
+      "iforest_score": -0.5592
+    },
+    {
+      "id": "S05",
+      "label": "NORMAL",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6686
+    },
+    {
+      "id": "S06",
+      "label": "NORMAL",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6588
+    },
+    {
+      "id": "S07",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6618
+    },
+    {
+      "id": "S08",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6618
+    },
+    {
+      "id": "S09",
+      "label": "RISK",
+      "rule_alerted": false,
+      "iforest_alerted": false,
+      "iforest_score": -0.4879
+    },
+    {
+      "id": "S10",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": false,
+      "iforest_score": -0.5592
+    },
+    {
+      "id": "S11",
+      "label": "NORMAL",
+      "rule_alerted": false,
+      "iforest_alerted": false,
+      "iforest_score": -0.5411
+    },
+    {
+      "id": "S12",
+      "label": "NORMAL",
+      "rule_alerted": true,
+      "iforest_alerted": false,
+      "iforest_score": -0.5461
+    },
+    {
+      "id": "S13",
+      "label": "NORMAL",
+      "rule_alerted": true,
+      "iforest_alerted": false,
+      "iforest_score": -0.5592
+    },
+    {
+      "id": "S14",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": true,
+      "iforest_score": -0.6686
+    },
+    {
+      "id": "S15",
+      "label": "NORMAL",
+      "rule_alerted": false,
+      "iforest_alerted": false,
+      "iforest_score": -0.5163
+    },
+    {
+      "id": "S16",
+      "label": "RISK",
+      "rule_alerted": true,
+      "iforest_alerted": false,
+      "iforest_score": -0.6553
+    }
+  ]
+}
