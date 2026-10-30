@@ -29,6 +29,10 @@ class AppTests(unittest.IsolatedAsyncioTestCase):
             ("POST", "/alerts/{alert_id}/seen"),
             ("POST", "/alerts/{alert_id}/response"),
             ("POST", "/alerts/{alert_id}/guide"),
+            ("POST", "/transfer-help-requests"),
+            ("PUT", "/budget-settings"),
+            ("POST", "/scheduled-expenses"),
+            ("PATCH", "/scheduled-expenses/{expense_id}"),
         }
         registered = [(method, path) for path, methods in app.openapi()["paths"].items()
                       for method in (method.upper() for method in methods)]

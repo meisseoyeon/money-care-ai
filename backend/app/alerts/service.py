@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 # 알림 + 거래 금액 + 설명 + 걸린 규칙들을 한 번에 가져오는 SQL
 ALERT_SELECT = """
     SELECT a.id, a.user_id, a.alert_type, a.status, a.user_response, a.created_at,
-           d.transaction_id, t.amount,
+           d.transaction_id, d.evidence AS detection_evidence, t.amount,
            e.text AS explanation, e.method AS explanation_method,
            (SELECT array_agg(d2.detection_type ORDER BY d2.detection_type)
               FROM detections d2
@@ -41,6 +41,8 @@ def make_title(alert_type: str, triggered_rules: list[str]) -> str:
         return "평소보다 큰 금액을 보냈어요"
     if alert_type == "NEW_COUNTERPARTY":
         return "처음 보내는 사람에게 돈을 보냈어요"
+    if alert_type == "TRANSFER_HELP":
+        return "송금 전에 함께 확인해 주세요"
     return "확인이 필요한 알림이에요"
 
 
@@ -58,6 +60,18 @@ def _guide_dto(row) -> dict | None:
     }
 
 
+def _evidence(row, rules: list[str]) -> dict:
+    # 송금 전 도움 요청은 거래가 없어서 저장해 둔 근거를 그대로 보여줌
+    if row["alert_type"] == "TRANSFER_HELP":
+        return row["detection_evidence"]
+    return {
+        "amount": row["amount"],
+        "is_new_counterparty": "NEW_COUNTERPARTY" in rules,
+        "p95_out_amount": row["p95_out_amount"],
+        "triggered_rules": rules,
+    }
+
+
 def _to_dto(row) -> dict:
     """DB 한 줄 → 프런트가 읽는 모양(API_CONTRACT.md의 Alert)으로 변환."""
     rules = list(row["triggered_rules"] or [])
@@ -72,12 +86,7 @@ def _to_dto(row) -> dict:
         "status": row["status"],
         "user_response": row["user_response"],
         "created_at": row["created_at"].isoformat(),
-        "evidence": {
-            "amount": row["amount"],
-            "is_new_counterparty": "NEW_COUNTERPARTY" in rules,
-            "p95_out_amount": row["p95_out_amount"],
-            "triggered_rules": rules,
-        },
+        "evidence": _evidence(row, rules),
         "guide": _guide_dto(row),
     }
 
