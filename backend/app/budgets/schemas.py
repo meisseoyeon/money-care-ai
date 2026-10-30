@@ -1,6 +1,7 @@
 from datetime import date, datetime
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, ConfigDict, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StringConstraints, field_validator
 
 
 class ForecastResponse(BaseModel):
@@ -25,3 +26,20 @@ class ForecastResponse(BaseModel):
     @classmethod
     def stringify_id(cls, value):
         return str(value)
+
+
+MAX_MONEY = 1_000_000_000
+
+
+class BudgetSettingsUpdate(BaseModel):
+    next_income_date: date
+    expected_income_amount: Annotated[StrictInt, Field(ge=0, le=MAX_MONEY)]
+    daily_living_budget: Annotated[StrictInt, Field(ge=0, le=MAX_MONEY)]
+
+
+class ExpenseSave(BaseModel):
+    # 수정 화면은 id, user_id도 함께 보내므로 모르는 값은 무시하고 경로의 id만 사용합니다.
+    title: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=100)]
+    amount: Annotated[StrictInt, Field(gt=0, le=MAX_MONEY)]
+    due_date: date
+    status: Literal["PLANNED", "PAID", "CANCELLED"] = "PLANNED"

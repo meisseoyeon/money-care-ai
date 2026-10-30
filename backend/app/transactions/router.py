@@ -7,6 +7,7 @@ from app.ai.explanation.service import upgrade_explanation_in_background
 from app.auth.dependencies import AuthPrincipal, get_current_user, require_monitoring_consent
 from app.db.session import get_db
 from app.transactions.schemas import TransferCreate
+from app.transactions import help as transfer_help
 from app.transactions import service
 
 router = APIRouter(tags=["transactions"])
@@ -22,6 +23,13 @@ def transfer(payload: TransferCreate, db: DB, response: Response, background_tas
     for alert_id in result["alert_ids"]:
         background_tasks.add_task(upgrade_explanation_in_background, principal.user.user_id, alert_id)
     return result
+
+
+@router.post("/transfer-help-requests")
+def transfer_help_request(payload: TransferCreate, db: DB, response: Response,
+                          principal: Annotated[AuthPrincipal, Depends(require_monitoring_consent)]):
+    response.headers["Cache-Control"] = "no-store"
+    return transfer_help.create_transfer_help(db, principal, payload)
 
 
 @router.get("/transactions")
