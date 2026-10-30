@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from app.ai.rag.fallback_guide import GUIDE_TEMPLATE_VERSION, get_fallback_steps
 from app.ai.rag.generator import generate_rag_steps
 from app.ai.rag.guide_validator import validate_guide
-from app.ai.rag.retrieval import RETRIEVAL_VERSION, retrieve_chunks
+from app.ai.rag.retrieval import RETRIEVAL_VERSION, SEARCH_PLANS, retrieve_chunks
 from app.alerts import service as alert_service
 from app.documents.prepare import EMBEDDING_VERSION, MODEL as EMBEDDING_MODEL
 
@@ -31,6 +31,8 @@ def get_or_create_guide(db: Session, user_id: str, alert_id: str) -> dict | None
 
 def _create_rag_guide(db: Session, alert: dict) -> str | None:
     """RAG 안내를 저장. 성공하면 None, 못 만들면 이유(오류 코드)."""
+    if alert["alert_type"] not in SEARCH_PLANS:
+        return "NO_SEARCH_PLAN"  # 송금 전 도움 요청 등 검색 계획이 없는 알림은 고정 안내
     try:
         chunks = retrieve_chunks(db, alert["alert_type"])
         if not chunks:
